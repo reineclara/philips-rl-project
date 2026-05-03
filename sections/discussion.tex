@@ -1,0 +1,152 @@
+\section{Discussion}
+\label{sec:discussion}
+
+The results reported in Section~\ref{subsec:results} place reinforcement
+learning in a regime close to the heuristic policy and far above the random
+policy. This section steps back from the raw numbers and interrogates what
+they allow us to claim---and what they do not---about the proposed approach,
+then identifies the limitations of the current setup and the directions for
+improvement.
+
+
+\subsection{Why PPO outperforms the random policy}
+\label{subsec:why-ppo-beats-random}
+
+The gap between PPO and the random policy does not merely reflect a
+difference in immediate expected reward; it stems from the fact that the
+agent learns to \emph{structure} its decisions around the state. Three
+mechanisms drive this behavior.
+
+First, the agent identifies a \emph{semantics} of coverage status: it learns
+that renewing is of little value---or even detrimental---while coverage is
+still largely valid, and that it becomes critical as expiration approaches.
+This semantics is not provided upfront: it is extracted exclusively from the
+reward signal, through observed trajectories.
+
+Second, the agent learns a \emph{temporal credit assignment}: the GAE
+estimator propagates the penalties of expiration and of uncovered failure
+back to the decisions that made them possible several steps earlier. The
+random policy, which does not adapt to the current state, cannot benefit
+from this information and accumulates penalties mechanically.
+
+Third, the agent \emph{conditions} its decisions on the full state, which
+lets it implicitly weigh the cost of a renewal against the contract-cost
+level and the risk level. The random policy treats all situations
+interchangeably and is necessarily penalized by this lack of specificity.
+
+
+\subsection{Why the heuristic policy can still win}
+\label{subsec:why-heuristic-wins}
+
+The slight numerical advantage of the heuristic over PPO does not reflect a
+defect of the reinforcement-learning approach; it reflects the \emph{alignment}
+between the structure of the considered problem and the form of the
+heuristic rule.
+
+The analysis in Section~\ref{subsec:results} already identified three primary
+contributors to this gap: the fit between the heuristic's inductive bias and
+the optimal policy, the function-approximation error of the neural network,
+and the finite training horizon.
+
+It is useful to add a more general reading of this phenomenon. In a problem
+whose optimal policy is exactly representable as a deterministic,
+one-dimensional rule, the RL agent enters an asymmetric game: it must
+\emph{rediscover}, through exploration, a policy that the heuristic possesses
+from step one. This asymmetry mechanically vanishes as the structure of the
+problem becomes richer and the information required for the decision exceeds
+what a simple rule can encode. The extensions listed in
+Section~\ref{subsec:improvements} are designed precisely to move the
+evaluation into regimes where this asymmetry reverses.
+
+
+\subsection{Limitations of the current setup}
+\label{subsec:limitations}
+
+Several limitations bound the scope of the reported conclusions.
+
+\paragraph{Simulator dependence.}
+Training and evaluation are conducted exclusively in a simulated environment.
+Distributions over contract durations, cost levels and risk, as well as
+failure probabilities, are defined by fixed parameters that have not been
+matched against Philips France's real installed base. Any bias between these
+distributions and reality will mechanically propagate to the learned policy.
+
+\paragraph{Single-equipment framing.}
+The MDP models a single piece of equipment at a time, without interactions
+between contracts. This choice simplifies analysis and reproducibility but
+elides budget couplings, volume constraints and portfolio effects that lie
+at the heart of the original operational problem.
+
+\paragraph{Sensitivity to reward shaping.}
+The reward function involves several components whose coefficients are set
+manually. The threshold heuristic closely matches the maximum of this
+shaping. A revision of the relative weights may shift the optimum and
+materially change the ranking of policies.
+
+\paragraph{Absence of out-of-distribution evaluation.}
+Policies are only evaluated on episodes drawn from the same distribution as
+those used for training. No experiment quantifies the robustness of PPO to a
+distribution shift, despite such shifts being inevitable in production.
+
+\paragraph{Limited interpretability.}
+The learned policy is represented by a neural network whose decisions are
+not natively explainable. This opacity is a barrier to adoption by business
+teams, who must justify coverage decisions to internal and external
+stakeholders.
+
+\paragraph{No hard operational constraints.}
+Contractual budget, exclusivities, renewal eligibility windows and
+contractual obligations do not appear explicitly in the MDP. In a production
+deployment, such constraints must be \emph{guaranteed}, not merely
+encouraged by the reward.
+
+
+\subsection{Paths for improvement}
+\label{subsec:improvements}
+
+The limitations above suggest several concrete directions.
+
+\paragraph{Extension to the full installed base.}
+Moving from the single-equipment framing to the simultaneous management of a
+heterogeneous portfolio exposes couplings (global budget, volume
+constraints) and risk asymmetries that the single-threshold heuristic cannot
+exploit. A per-equipment factorized policy with a shared critic---in the
+spirit of the formulation sketched in Section~\ref{subsec:ppo}---constitutes
+a natural first step.
+
+\paragraph{Offline learning from historical data.}
+Once available, the operational traces of Philips France may serve as the
+basis for offline RL, avoiding any interaction with the production system.
+Algorithms such as Conservative Q-Learning or Implicit Q-Learning allow
+exploiting such data while controlling extrapolation risk.
+
+\paragraph{Constrained learning.}
+Budgetary and contractual constraints may be enforced explicitly, either
+via action masking (prohibition at the softmax level of infeasible actions)
+or through constrained-RL algorithms such as Constrained PPO and Lagrangian
+methods.
+
+\paragraph{Robustness and uncertainty quantification.}
+Evaluation under distribution shift, training over an ensemble of
+parametrically diverse simulators, and the use of Bayesian policies would
+characterize and mitigate the model's sensitivity to gaps between
+simulation and production.
+
+\paragraph{Interpretability.}
+Several levers may reduce policy opacity: distillation of the learned policy
+into a decision tree or a set of rules, analysis of input-feature
+importance, or hybrid formulations combining an interpretable rule with a
+learned residual.
+
+\paragraph{Comparison with stochastic optimization.}
+Finally, confronting PPO with classical optimization methods---multi-stage
+stochastic programming, rolling-horizon integer programs---would complement
+the study with a comparison against a global policy obtained directly from
+an explicit model of the problem.
+
+\bigskip
+\noindent
+These directions converge toward a more demanding experimental framework in
+which the simplifying assumptions of the present work are lifted one by one.
+They form the core of the research program outlined in
+Section~\ref{sec:conclusion}.

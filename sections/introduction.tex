@@ -1,0 +1,69 @@
+\section{Introduction}
+\label{sec:introduction}
+
+In large healthcare organizations such as Philips France, the management of
+medical equipment relies on a complex portfolio of maintenance contracts,
+manufacturer warranties and warranty extensions. This management is critical:
+it directly conditions the continuity of clinical services, the quality of
+patient care, and the operational costs borne by the organization. The
+contractual portfolio evolves continuously, driven by installations, renewals
+and expirations, which makes coverage mastery particularly difficult at the
+scale of a large installed base.
+
+Despite the growing availability of data from information systems, existing
+tools remain largely descriptive and fragmented. Current dashboards offer
+partial visibility into contractual coverage, but they neither anticipate
+risks associated with contract expirations nor prioritize actions in a
+proactive manner. They also fail to provide explanations accessible to
+business users, limiting their ability to interpret indicators, justify
+decisions, and act quickly in complex operational environments. The result
+is a growing need for intelligent solutions capable of transforming data into
+actionable decisions while delivering clear, contextualized justifications.
+
+We argue that this problem is naturally expressed as sequential
+decision-making under uncertainty and is therefore well suited to a
+reinforcement learning (RL) treatment. Specifically, we formalize it as a
+\emph{Markov decision process} (MDP) in which the state describes the set of
+managed pieces of equipment and their current contractual posture
+(maintenance, manufacturer warranty, extension), the actions correspond to
+coverage decisions (subscription, renewal, adjustment, prioritization),
+transitions model the portfolio dynamics and contract expirations, and the
+reward balances coverage cost against the penalty associated with uncovered
+equipment and late interventions. In this framework, an RL agent learns a
+long-horizon coverage policy that anticipates expirations and prioritizes
+the actions with the greatest value for the organization.
+
+Operationalizing this formulation raises several challenges. The environment
+is only partially observable and must be reconstructed from heterogeneous
+data sources; the action space combines discrete decisions over a large
+number of pieces of equipment; the cost of erroneous exploration in
+production precludes direct online learning, which motivates the use of
+simulators and offline evaluation protocols; finally, the learned policy
+must be interpretable to be adopted by the business teams responsible for
+contract management.
+
+The contributions of this work are as follows:
+\begin{itemize}
+    \item We formalize contractual coverage optimization for medical equipment
+          as a Markov decision process, integrating maintenance contracts,
+          manufacturer warranties and warranty extensions.
+    \item We develop a simulation environment reproducing coverage, expiration
+          and intervention dynamics calibrated on operational characteristics
+          of the installed base.
+    \item We train and evaluate a Proximal Policy Optimization agent and
+          compare it with two representative baselines of current practice
+          (a random policy and a threshold-based heuristic).
+    \item We empirically show that the learned policy reduces the number of
+          uncovered equipment steps while remaining within reach of a strong
+          heuristic reference, and we analyze the conditions under which RL
+          is expected to provide a clearer advantage.
+\end{itemize}
+
+The remainder of the paper is organized as follows.
+Section~\ref{sec:related_work} reviews related work on maintenance
+optimization, service-contract design, and reinforcement learning applied to
+healthcare operations. Section~\ref{sec:methodology} details the MDP
+formulation and the learning algorithm. Section~\ref{sec:experiments}
+describes the experimental protocol and reports the empirical results.
+Section~\ref{sec:discussion} discusses interpretations, limitations and
+perspectives, and Section~\ref{sec:conclusion} concludes.

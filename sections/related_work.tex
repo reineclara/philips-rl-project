@@ -1,0 +1,59 @@
+\section{Related Work}
+\label{sec:related_work}
+
+Our study lies at the intersection of three research strands: maintenance and
+service-contract optimization, reinforcement learning for sequential
+decision-making in industrial operations, and deep policy-gradient methods.
+
+
+\paragraph{Maintenance and service-contract optimization.}
+Service-contract design and maintenance scheduling have a long tradition in
+operations research, where they are typically formulated as integer programs,
+renewal-theoretic models or stochastic dynamic programs
+\cite{jardine2006managing,dekker1996applications}. These approaches provide
+principled solutions under strong modelling assumptions but scale poorly to
+high-dimensional portfolios with stochastic failures and evolving contractual
+structures, and typically produce static rather than adaptive policies. In
+industrial practice, simple threshold rules and segment-based heuristics
+dominate deployments \cite{gits1992structuring}, which motivates the search
+for data-driven alternatives that can capture the temporal feedback between
+coverage decisions and downstream costs.
+
+
+\paragraph{Reinforcement learning for industrial operations.}
+Reinforcement learning has emerged as a natural framework for sequential
+decision-making in industrial and financial operations, thanks to its
+ability to learn from interactions without requiring an explicit model of
+the environment \cite{sutton2018reinforcement}. Recent applications include
+risk-sensitive trading agents trained with language-model-augmented rewards
+\cite{benhenda2025}, deep RL for decentralized market making and liquidity
+provisioning \cite{xu2025}, and dynamic pricing and inventory management
+\cite{boute2022deep}. These works illustrate both the promise of RL for
+decision-making under uncertainty and the recurring difficulties of reward
+specification, sample efficiency and safe deployment---difficulties that
+are also central to our setting.
+
+
+\paragraph{Reinforcement learning in healthcare operations.}
+Within healthcare, RL has been applied to treatment recommendation, dynamic
+treatment regimes and operational decision-making such as ICU ventilator
+weaning and resource allocation \cite{yu2021reinforcement}. Most of these
+applications emphasize safety, interpretability and offline learning from
+historical logs, all constraints that also apply when managing a fleet of
+medical devices. To the best of our knowledge, contract-coverage
+optimization for medical equipment has not yet been cast as an RL problem in
+the published literature, which motivates the present work.
+
+
+\paragraph{Policy-gradient methods.}
+At the algorithmic level, our approach builds on deep actor-critic methods.
+Proximal Policy Optimization \cite{schulman2017ppo} provides an empirically
+stable policy-gradient procedure through a clipped surrogate objective,
+which we couple with Generalized Advantage Estimation
+\cite{schulman2016gae}. Running observation normalization and advantage
+normalization, which we also use, are standard components of modern PPO
+implementations \cite{andrychowicz2021matters}. Our contribution is not
+algorithmic but applicative: we design an MDP formulation, a simulation
+environment and an evaluation protocol tailored to contractual-coverage
+optimization, and we situate the learned policy against a random baseline
+and a strong rule-based heuristic.

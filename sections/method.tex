@@ -1,0 +1,120 @@
+\section{Method}
+\label{sec:methodology}
+
+This section formalizes the contract-coverage optimization problem as a
+Markov decision process (MDP) and describes the reinforcement-learning
+algorithm we adopt, Proximal Policy Optimization (PPO).
+
+
+\subsection{MDP formulation}
+\label{subsec:mdp}
+
+We model the problem as a finite-horizon MDP in which the state describes
+the contractual and operational posture of the managed equipment, the actions
+correspond to coverage decisions, transitions capture failure, renewal and
+aging dynamics, and the reward balances operational costs against the
+consequences of non-coverage. Time is discretized on a monthly grid and
+decisions are taken on the full set of managed equipment.
+
+
+\paragraph{State space.}
+At each time step, the state describes the contractual and operational
+posture of the portfolio as a whole. For each piece of equipment, the local
+state combines the current coverage type (no coverage, manufacturer warranty,
+warranty extension, or maintenance contract), the time remaining before
+expiration of the current coverage, the age of the equipment, its cumulative
+usage, the recent history of interventions and failures, and static
+attributes such as modality, clinical criticality, site of installation and
+risk class. The global state aggregates these individual descriptions and
+adds the residual contractual budget available to the organization.
+
+
+\paragraph{Action space.}
+At each time step, the agent chooses, for each piece of equipment, a coverage
+decision drawn from a finite set: maintain the current situation, subscribe
+to a new coverage, renew the existing coverage, raise the service level,
+lower the service level, or terminate the ongoing coverage. Because the joint
+action space is combinatorial, we restrict it to feasible decisions filtered
+by contractual constraints such as eligibility dates, exclusivities and
+available budget. To keep the dimension tractable, the policy is factorized
+per piece of equipment, each being assigned a decision conditioned on the
+global state.
+
+
+\paragraph{Reward function.}
+The reward aggregates three components. First, the expected service revenue
+associated with active contracts on the installed base. Second, the
+contractual costs incurred by coverage decisions. Third, two penalties: one
+applied per equipment that remains uncovered, and one applied to failures
+occurring while no active coverage is in place. The weighting coefficients
+of these penalties are calibrated on historical data to reflect the
+operational and financial priorities of the organization. The agent's
+objective is to maximize the expected discounted return over the decision
+horizon.
+
+
+\paragraph{Transition dynamics.}
+The transition between consecutive time steps decomposes into four
+sub-processes that are independent conditionally on the chosen action.
+The first reflects contractual evolution: the coverage type and the remaining
+time before expiration are updated according to the chosen decision and time
+decay, with automatic transition to the uncovered state when a contract
+expires without renewal. The second reflects aging and usage: age is
+incremented at each step and cumulative usage evolves according to a class-
+specific distribution. The third models failures: their probability is
+learned from intervention histories and conditions the update of the recent
+history. The last tracks the contractual budget, reduced by the costs
+incurred at each step and periodically replenished at the beginning of the
+fiscal period. This decomposition supports estimating the components of the
+dynamics separately and instantiating a reproducible simulator that respects
+the Markov property on the augmented state.
+
+
+\subsection{Proximal Policy Optimization (PPO)}
+\label{subsec:ppo}
+
+To solve the MDP defined in Section~\ref{subsec:mdp}, we use the \emph{Proximal
+Policy Optimization} (PPO) algorithm~\cite{schulman2017ppo}, a policy-gradient
+method recognized for its empirical stability and implementation simplicity,
+and particularly suited to the large-dimensional discrete action spaces
+considered here.
+
+
+\paragraph{Principle.}
+PPO belongs to the family of actor-critic methods. The algorithm jointly
+trains two components: a stochastic policy, which maps each state to a
+probability distribution over admissible actions, and a value function, which
+estimates the expected future return from a given state. Both components are
+parameterized by neural networks and learned from trajectories collected
+under the current policy. The advantage estimate, which measures the marginal
+gain of an action relative to the average value of the state, is obtained
+through the GAE estimator~\cite{schulman2016gae}, which provides a
+controllable trade-off between bias and variance.
+
+
+\paragraph{Clipped objective.}
+The specificity of PPO lies in its learning objective. From the collected
+trajectories, the algorithm builds a surrogate objective comparing the
+current policy to the policy that produced the data. To prevent overly large
+updates likely to destabilize learning, this objective is \emph{clipped}:
+excessively large policy changes are truncated, which guarantees that the
+optimized policy remains close to the behavior policy. This implicit
+constraint gives PPO its characteristic stability. The value function is
+trained by minimizing the squared return-prediction error, and an entropy
+bonus is added to the global objective to encourage exploration and to
+prevent premature convergence to a deterministic policy.
+
+
+\paragraph{Application to the coverage problem.}
+The policy is instantiated in factorized form per piece of equipment. A
+shared encoder produces an internal representation of each local state, and
+an independent decision head per equipment outputs the distribution over
+admissible actions. The critic shares the same encoder and aggregates the
+local representations via pooling before predicting the global state value.
+Contractual and budgetary constraints are enforced by \emph{masking}
+infeasible actions before the softmax, which preserves the validity of the
+policy while restricting exploration to admissible decisions. Training is
+conducted offline on the simulator described in
+Section~\ref{sec:experiments}, which enables intensive exploration without
+operational risk and yields a reproducible evaluation of the learned
+policies prior to any deployment.
