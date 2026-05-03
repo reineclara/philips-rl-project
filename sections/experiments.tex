@@ -160,53 +160,58 @@ the mean.
 Metric & Random & Heuristic & PPO \\
 \midrule
 Cumulative reward    &
-    $-184.91 \pm 12.80$                      &
-    $\phantom{-}60.56 \pm \phantom{0}3.10$   &
-    $\phantom{-}55.08 \pm \phantom{0}3.62$   \\
-                                              &
-    $[-187.5,\,-182.4]$                      &
-    $[\phantom{-0}59.9,\,\phantom{-0}61.2]$  &
-    $[\phantom{-0}54.4,\,\phantom{-0}55.8]$  \\
+    $-241.44 \pm 92.66$                        &
+    $\phantom{-}58.06 \pm \phantom{0}3.93$     &
+    $\phantom{-}44.83 \pm 20.05$               \\
+                                                &
+    $[-259.60,\,-223.28]$                      &
+    $[\phantom{-0}57.29,\,\phantom{-0}58.84]$  &
+    $[\phantom{-0}40.90,\,\phantom{-0}48.76]$  \\
 \addlinespace
 Uncovered steps      &
-    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
-    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
-    $\phantom{-00}0.40 \pm \phantom{0}0.89$  \\
-                                              &
-    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
-    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
-    $[\phantom{-0}0.22,\,\phantom{-00}0.58]$ \\
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$    &
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$    &
+    $\phantom{-00}1.12 \pm \phantom{0}1.81$    \\
+                                                &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$   &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$   &
+    $[\phantom{-0}0.77,\,\phantom{-00}1.47]$   \\
 \addlinespace
 Uncovered failures   &
-    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
-    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
-    $\phantom{-00}0.05 \pm \phantom{0}0.22$  \\
-                                              &
-    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
-    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
-    $[\phantom{-0}0.01,\,\phantom{-00}0.09]$ \\
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$    &
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$    &
+    $\phantom{-00}0.11 \pm \phantom{0}0.40$    \\
+                                                &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$   &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$   &
+    $[\phantom{-0}0.03,\,\phantom{-00}0.19]$   \\
 \bottomrule
 \end{tabular}
 \caption{Performance comparison over $100$ evaluation episodes with
-         shared seeds. Each cell reports $\text{mean} \pm \text{SD}$ on
-         the first line and the $95\%$ confidence interval on the mean
-         on the second. \emph{These numbers are produced by the
-         reproducible evaluation pipeline in} \texttt{main.py}
-         \emph{and should be regenerated at each commit affecting the
-         policy or the environment.}}
+         shared seeds ($\text{seeds} = 2000, \ldots, 2099$). Each cell
+         reports $\text{mean} \pm \text{SD}$ on the first line and the
+         $95\%$ confidence interval on the mean (Student's $t$,
+         $\mathrm{df}=99$) on the second. Numbers are produced by the
+         reproducible evaluation pipeline in \texttt{main.py} and
+         written to \texttt{results.md} at every run.}
 \label{tab:results}
 \end{table}
 
 \paragraph{Main finding.}
-The heuristic baseline obtains a mean reward of $60.56$ against $55.08$
-for PPO; the observed gap of $5.48$ reward units lies outside both
+The heuristic baseline obtains a mean reward of $58.06$ against $44.83$
+for PPO; the observed gap of $13.23$ reward units lies outside both
 $95\%$ confidence intervals and is therefore not a sampling artefact.
-Welch's $t$-test on the per-episode rewards yields $t \approx -11.5$
-with $p \ll 0.01$, which confirms that, \emph{in this environment}, the
-heuristic is significantly better than PPO in mean reward. The random
-policy, at $-184.91$, is separated from both learned and rule-based
-policies by a margin of more than $70$ standard errors: this gap is
-trivial to detect and is reported only to bound the problem from below.
+A two-sided Welch's $t$-test on the per-episode rewards yields
+$t = -6.48$ with $p < 0.0001$ (Welch--Satterthwaite
+$\mathrm{df} \approx 107$), confirming that in this environment the
+heuristic is significantly better than PPO in mean reward. Two
+observations deserve particular attention. First, PPO's standard
+deviation ($20.05$) is more than five times the heuristic's ($3.93$):
+the learned policy is substantially less \emph{reliable} across
+episodes, not only lower on average. Second, the random policy at
+$-241.44$ is separated from both learned and rule-based policies by
+more than $15$ standard errors and serves only as a lower bound on the
+problem.
 
 \paragraph{A counter-intuitive but well-explained random baseline.}
 The random policy obtains a strongly negative reward despite recording
@@ -220,17 +225,22 @@ thus manifests as expensive over-coverage rather than under-coverage,
 and confirms that the sole metric of uncovered steps does not fully
 capture the quality of a policy.
 
-\paragraph{PPO learns a competitive but slightly sub-optimal policy.}
-The PPO agent reaches a high positive reward and demonstrates that a
+\paragraph{PPO learns a competent but unstable policy.}
+PPO reaches a clearly positive mean reward and demonstrates that a
 standard policy-gradient procedure is able to learn, from interactions
-with the simulator alone, a policy that keeps the equipment almost
-continuously covered (on average $0.40$ uncovered step and $0.05$
-uncovered failure per episode) while limiting renewal costs. The
-residual gap to the heuristic is analyzed in detail in
-Section~\ref{sec:discussion}; in short, it reflects the fact that the
-optimal policy of the considered environment is exactly representable as
-a one-dimensional threshold rule, which the heuristic encodes by
-construction.
+with the simulator alone, a policy that keeps the equipment covered
+during the overwhelming majority of each episode ($1.12$ uncovered step
+and $0.11$ uncovered failure per episode on average) while limiting
+renewal costs. The policy is not competitive with the heuristic in mean
+reward, however, and its high variance indicates that convergence is
+not fully stable within the $3{,}000$-episode training budget: a small
+fraction of evaluation episodes yields rewards well below the bulk of
+the distribution, dragging the mean down. The residual gap to the
+heuristic is analyzed in detail in Section~\ref{sec:discussion}; in
+short, it reflects the fact that the optimal policy of the considered
+environment is exactly representable as a one-dimensional threshold
+rule, which the heuristic encodes by construction and which PPO has to
+rediscover through noisy exploration.
 
 
 \subsection{Sensitivity analysis: heuristic threshold}
@@ -249,35 +259,45 @@ five values of the threshold, evaluated on the same $100$ shared seeds.
 Threshold (days) & $3$ & $5$ & $7$ & $10$ & $15$ \\
 \midrule
 Mean reward $\pm$ SD &
-    $58.1 \pm 3.2$ &
-    $60.6 \pm 3.1$ &
-    $60.3 \pm 3.2$ &
-    $58.5 \pm 3.5$ &
-    $52.0 \pm 4.1$ \\
+    $58.06 \pm 3.93$ &
+    $58.06 \pm 3.93$ &
+    $49.98 \pm 4.00$ &
+    $49.74 \pm 4.23$ &
+    $49.14 \pm 4.62$ \\
 $95\%$ CI &
-    $[57.5,\,58.7]$ &
-    $[59.9,\,61.2]$ &
-    $[59.7,\,61.0]$ &
-    $[57.8,\,59.2]$ &
-    $[51.2,\,52.8]$ \\
+    $[57.29,\,58.84]$ &
+    $[57.29,\,58.84]$ &
+    $[49.20,\,50.76]$ &
+    $[48.91,\,50.57]$ &
+    $[48.24,\,50.04]$ \\
 \bottomrule
 \end{tabular}
-\caption{Heuristic renewal-threshold sensitivity on $100$ shared seeds
-         (\emph{indicative values; regenerated by}
-         \texttt{python main.py}).}
+\caption{Heuristic renewal-threshold sensitivity on the same $100$
+         shared seeds as Table~\ref{tab:results}. Thresholds of $3$
+         and $5$ induce an identical policy in practice because
+         contracts rarely reach the $[0, 3]$ days-to-expiration range
+         without being renewed first.}
 \label{tab:sensitivity}
 \end{table}
 
-The heuristic reaches its peak around threshold $5$ and degrades
-smoothly on either side of this optimum, with a maximum loss of roughly
-$8.6$ reward units at threshold $15$. Two points are worth emphasising:
-$(i)$ the heuristic used in Table~\ref{tab:results} happens to sit at
-its peak, which maximises the baseline's apparent strength; $(ii)$ the
-learned PPO policy at $55.08$ outperforms two of the five tested
-thresholds (namely $3$ and $15$), and is competitive with the others.
-In a production setting where the optimal threshold cannot be known
-\emph{a priori}, the learned policy would therefore already be
-preferable to three of the five hand-tuned thresholds.
+Three observations emerge from the sweep. First, the heuristic's peak
+is flat: thresholds of $3$ and $5$ produce exactly the same mean
+reward ($58.06$) because episodes rarely observe $\mathrm{days\_to\_exp}
+\in [0, 3]$ in practice. Second, the heuristic is \emph{robust} across
+its operating range: the largest observed loss is only $8.9$ reward
+units between the peak and threshold $15$, corresponding to a $15\%$
+relative degradation. Third, and most importantly for the
+interpretation of Table~\ref{tab:results}: the learned PPO policy, at
+$44.83 \pm 20.05$, is currently below all five tested thresholds; the
+$95\%$ confidence interval of PPO ($[40.90, 48.76]$) overlaps only
+with that of the worst heuristic threshold ($15$, CI
+$[48.24, 50.04]$), and even in that case the overlap is marginal. A
+longer training budget, a richer observation space, or the
+regularisation strategies discussed in Section~\ref{sec:discussion}
+would be required to close this gap. The key point for the present
+paper is that the gap is \emph{quantified} rather than merely claimed:
+it persists across four distinct heuristic instantiations and is
+sufficiently large relative to PPO's own variance to be actionable.
 
 
 \subsection{Training dynamics}
@@ -296,22 +316,26 @@ preferable to three of the five hand-tuned thresholds.
     \label{fig:training_curve}
 \end{figure}
 
-Figure~\ref{fig:training_curve} summarizes the training dynamics. Three
-observations deserve to be highlighted. First, during the initial $300$
-episodes the agent's reward is strongly negative and close to the
-random-policy level, reflecting the cost of exploration before the
+Figure~\ref{fig:training_curve} summarizes the training dynamics. Four
+observations deserve to be highlighted. First, during the initial
+$200$ episodes the training reward is strongly negative and close to
+the random-policy level, reflecting the cost of exploration before the
 policy discovers the coverage semantics. Second, a clear upward
-inflection is visible between episodes $300$ and $800$, during which
+inflection is visible between episodes $200$ and $500$, during which
 the agent simultaneously reduces uncovered periods and limits
-expensive over-coverage, which is consistent with the training-time
-greedy evaluations (orange markers) crossing the random baseline and
-then the zero line. Third, after roughly $1500$ episodes the greedy
-evaluation reward plateaus slightly below the heuristic reference
-line, a stagnation characteristic of an agent that has converged to a
-local optimum constrained by its four-dimensional observation space;
-longer training alone would not close this gap, as confirmed by the
-sensitivity analysis of Section~\ref{subsec:sensitivity}. These
-observations jointly support the interpretation developed in
+expensive over-coverage; the moving average of the training reward
+crosses the random baseline and then the zero line in this interval.
+Third, after roughly $600$ episodes the moving average plateaus in the
+range $[40, 48]$, well below the heuristic reference line at $58.06$:
+training has converged to a local optimum constrained by the
+four-dimensional observation space, and longer training alone is
+unlikely to close the remaining gap. Fourth, and crucially for the
+interpretation of the results, the per-episode greedy evaluation
+(orange markers) is highly \emph{volatile}: it oscillates between
+$+55$ and $-194$ well into the second half of training, which directly
+explains the large episode-to-episode variance ($\text{SD} = 20.05$)
+reported in Table~\ref{tab:results}. These observations jointly
+support the interpretation developed in
 Section~\ref{sec:discussion}.
 
 
@@ -324,9 +348,16 @@ of parameters. They therefore do not directly entail the performance
 achievable in production, where additional factors---portfolio
 heterogeneity, global budget constraints, partial observability,
 non-stationary dynamics---that are absent from the present framework
-come into play. Within this scope, however, the results support a
-precise, narrow claim: a from-scratch PPO agent, trained for $3{,}000$
-episodes on a four-dimensional MDP, recovers a coverage policy that is
-statistically close to a strong hand-tuned heuristic without being
-provided any business rule, while being significantly cheaper to
-maintain and adapt should the environment structure change.
+come into play. Within this scope, the results support a precise,
+narrow claim: a from-scratch PPO agent, trained for $3{,}000$ episodes
+on a four-dimensional MDP, recovers a coverage policy that is
+significantly above a random baseline but significantly below a
+hand-tuned threshold heuristic ($p < 10^{-4}$), with an episode-to-
+episode standard deviation five times larger than that of the
+heuristic. We interpret this result not as a negative finding on
+reinforcement learning in general, but as a quantitative statement
+about the regime in which a simple rule already captures most of the
+available return: the same pipeline would presumably benefit from the
+additional structure of a multi-equipment portfolio, non-stationary
+dynamics, or constrained budgets, for which hand-tuned rules become
+progressively harder to maintain.

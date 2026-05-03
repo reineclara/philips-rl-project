@@ -12,23 +12,26 @@ applicative: we do not propose a new algorithm, but we provide a clean
 MDP formulation, a reproducible training pipeline, and a statistically
 grounded comparison with two baselines.
 On $100$ evaluation episodes drawn from a shared seed pool, the PPO
-agent reaches a mean reward of $55.08 \pm 3.62$ ($95\%$ confidence
-interval $[54.4, 55.8]$), significantly above the random policy
-($-184.91 \pm 12.80$) and significantly below the threshold-based
-heuristic ($60.56 \pm 3.10$; Welch's $t$-test $p \ll 0.01$). A
-sensitivity sweep over the heuristic's renewal threshold shows that the
-reported heuristic sits almost exactly at the peak of its one-parameter
-family, and that PPO already matches or outperforms two of the five
-tested thresholds.
-Taken together, these observations attest that a standard PPO pipeline
-recovers a competent coverage policy from scratch, without receiving any
-business rule, and that the residual advantage of the heuristic
-reflects the structural simplicity of the considered environment: a
-one-dimensional rule on the time to expiration is near-optimal here,
-and the added value of reinforcement learning is expected to grow with
-the complexity and variability of real environments, where no simple
-rule can jointly capture dependencies between cost, risk and temporal
-dynamics.
+agent reaches a mean reward of $44.83 \pm 20.05$ ($95\%$ confidence
+interval $[40.90, 48.76]$), significantly above the random policy
+($-241.44 \pm 92.66$) and significantly below the threshold-based
+heuristic ($58.06 \pm 3.93$; Welch's two-sided $t$-test $t = -6.48$,
+$p < 10^{-4}$). The heuristic is robust across its operating range
+(reward $49.14$ to $58.06$ for thresholds $3$--$15$), and PPO is
+currently below all five tested thresholds. PPO's variance
+($\mathrm{SD} = 20.05$) is more than five times that of the heuristic,
+indicating that the gap is driven by both a lower mean and a higher
+episode-to-episode volatility.
+Taken together, these observations show that a standard PPO pipeline
+recovers a competent coverage policy from scratch, without receiving
+any business rule, but does not yet match a hand-tuned threshold rule
+in this deliberately simplified environment. The residual advantage of
+the heuristic reflects the structural simplicity of the considered
+problem: a one-dimensional rule on the time to expiration is
+near-optimal here, and the added value of reinforcement learning is
+expected to grow with the complexity and variability of real
+environments, where no simple rule can jointly capture dependencies
+between cost, risk and temporal dynamics.
 These results rely on a deliberately simplified simulator, a
 four-dimensional state representation and a training budget of $3{,}000$
 episodes, all of which bound the scope of the conclusions.

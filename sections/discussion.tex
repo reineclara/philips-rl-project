@@ -2,8 +2,9 @@
 \label{sec:discussion}
 
 The results reported in Section~\ref{subsec:results} place reinforcement
-learning in a regime close to the heuristic policy and far above the random
-policy. This section steps back from the raw numbers and interrogates what
+learning significantly above the random policy but also significantly
+below the hand-tuned threshold heuristic, with a reward gap of roughly
+$13$ units and a Welch's $t$-test $p$-value below $10^{-4}$. This section steps back from the raw numbers and interrogates what
 they allow us to claim---and what they do not---about the proposed approach,
 then identifies the limitations of the current setup and the directions for
 improvement.
@@ -80,18 +81,18 @@ structure of the problem becomes richer and the information required for
 the decision exceeds what a simple rule can encode.
 
 The sensitivity analysis in Section~\ref{subsec:sensitivity} sharpens
-this reading. The heuristic used in the main comparison happens to sit
-almost exactly at the reward peak of its threshold sweep, so
-Table~\ref{tab:results} reports the comparison against the best possible
-instance of a one-parameter rule. Under an adversarial or merely
-off-peak instantiation of the same rule family, PPO already matches or
-outperforms three of the five tested thresholds. In a production
-setting where the optimal threshold is unknown and would itself have to
-be discovered---potentially across multiple equipment classes or
-contract types---the relative cost of learning the policy from
-interactions becomes a much weaker disadvantage. The extensions listed
-in Section~\ref{subsec:improvements} are designed precisely to move the
-evaluation into regimes where this asymmetry reverses.
+this reading, but also tempers it. The heuristic used in the main
+comparison happens to sit on the plateau of its threshold sweep
+(thresholds $3$ and $5$ produce identical rewards), so
+Table~\ref{tab:results} reports the comparison against a near-optimal
+instance of a one-parameter rule. Yet even the worst heuristic
+threshold tested ($15$) remains above PPO: the rule family is robust
+to threshold mis-specification, whereas PPO in its current form is
+not. In a production setting this robustness of simple rules would be
+a further argument in their favour; the extensions listed in
+Section~\ref{subsec:improvements} are designed precisely to move the
+evaluation into regimes where the rule's simplicity becomes a
+liability rather than an asset.
 
 
 \subsection{Limitations of the current setup}

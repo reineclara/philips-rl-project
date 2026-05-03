@@ -10,8 +10,14 @@ written to `results.md` and `results.json` for easy paper integration.
 import copy
 import json
 import math
+import sys
 
 import matplotlib
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except AttributeError:
+    pass
 
 matplotlib.use("Agg")  # no GUI backend needed
 import matplotlib.pyplot as plt
@@ -447,7 +453,7 @@ def main():
     print_rigorous_comparison(results, config.EVAL_EPISODES_FINAL)
     print(
         f"\nWelch's t-test PPO vs Heuristic: "
-        f"t = {welch[0]:.3f}, p = {welch[1]:.4f}, df ≈ {welch[2]:.1f}"
+        f"t = {welch[0]:.3f}, p = {welch[1]:.4f}, df ~ {welch[2]:.1f}"
     )
     print("\nHeuristic sensitivity sweep (renew threshold -> mean reward):")
     for s in sensitivity:
