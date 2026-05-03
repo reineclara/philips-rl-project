@@ -94,10 +94,34 @@ concern the coverage counter and the failure process. The dynamics are
 fully Markovian in the four-dimensional state.
 
 
+\subsection{Tabular Bellman optimum (value iteration)}
+\label{subsec:vi-baseline}
+
+For benchmarking and clarification of optimality notions, we also compute an
+exact greedy policy in a finite MDP that augments each physical state with the
+elapsed time index $\tau \in \{0,\dots,T{-}1\}$ recorded by the simulator at
+each decision (the environment's internal step counter before the action is
+applied).
+
+Because $\mathrm{cost\_level}$ and $\mathrm{risk\_level}$ are fixed throughout
+an episode, this augmented process is finite---at most
+$|\mathcal{S}_\text{tab}| \approx 65{,}880$ reachable tuples for our
+$T{=}120$, $D_{\max}{=}60$ setting---so we solve it with synchronous
+discounted value iteration using the same $\gamma{=}0{.}99$ as PPO.
+
+The uncovered failure channel affects only stochastic roll-outs; Bellman backups
+evaluate its contribution through the conditional expected penalty given the
+coverage status after deterministic transition of the expiry counter. The
+associated greedy policy, denoted \emph{VI (exp.)} in experiments, maximises the
+usual discounted criterion in \emph{expectation} relative to this tabulation;
+Monte Carlo evaluation on the sampled simulator inherits Bernoulli noise, so confidence
+intervals remain non-degenerate.
+
+
 \subsection{Proximal Policy Optimization (PPO)}
 \label{subsec:ppo}
 
-To solve the MDP defined in Section~\ref{subsec:mdp}, we use the
+To approximate the MDP defined in Section~\ref{subsec:mdp}, we use the
 \emph{Proximal Policy Optimization} (PPO)
 algorithm~\cite{schulman2017ppo}, a policy-gradient method recognized for
 its empirical stability and implementation simplicity.

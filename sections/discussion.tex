@@ -3,11 +3,9 @@
 
 The results reported in Section~\ref{subsec:results} place reinforcement
 learning significantly above the random policy but also significantly
-below the hand-tuned threshold heuristic, with a reward gap of roughly
-$13$ units and a Welch's $t$-test $p$-value below $10^{-4}$. This section steps back from the raw numbers and interrogates what
-they allow us to claim---and what they do not---about the proposed approach,
-then identifies the limitations of the current setup and the directions for
-improvement.
+below both the heuristic rule and the tabular VI benchmark, with Welch tests
+against PPO at $p < 10^{-4}$ whereas heuristic and VI rewards are statistically
+inseparable ($p \approx 0.97$, footnote in Section~\ref{subsec:baselines}). This section interrogates how to read these contrasts and sketches responsible extensions.
 
 
 \subsection{Positioning of the contribution}
@@ -22,10 +20,10 @@ andrychowicz2021matters}. The contribution is applicative and
 methodological in a narrower sense: we isolate a business
 decision-making problem whose RL formulation has not, to our knowledge,
 been published; we build the smallest non-trivial simulator capable of
-carrying that decision; and we subject the resulting pipeline to a
-statistically sound comparison against two natural baselines---a random
-policy and a rule-based heuristic whose only parameter has itself been
-swept---with explicit confidence intervals and a significance test.
+carrying that decision; we derive a tabular Bellman reference via synchronous
+value iteration with identical modelling primitives; and we compare PPO against
+uniform random rolls, heuristic sweeps, and the VI roll-out with shared seeds,
+confidence intervals and Welch tests.
 Under this scope, the empirical findings reported below should be read
 as an \emph{upper bound on the expected performance of a minimal,
 honestly reported, reproducible PPO pipeline on this problem class},
@@ -62,37 +60,21 @@ interchangeably and is necessarily penalized by this lack of specificity.
 \subsection{Why the heuristic policy can still win}
 \label{subsec:why-heuristic-wins}
 
-The slight numerical advantage of the heuristic over PPO does not reflect a
-defect of the reinforcement-learning approach; it reflects the \emph{alignment}
-between the structure of the considered problem and the form of the
-heuristic rule.
+The gap between PPO and the threshold heuristic is best read through the lens
+of \emph{co-optimal planning}. Value iteration on the augmented tabular MDP
+(Section~\ref{subsec:vi-baseline}) yields roll-out statistics that Welch's test
+cannot distinguish from the heuristic (Section~\ref{subsec:baselines}), so the
+``business rule'' is not an arbitrary straw man: it tracks the Bellman reference
+up to Monte Carlo noise. Neural PPO therefore trails an analytical certificate,
+not merely tribal knowledge, and its higher reward variance highlights function
+approximation pathologies rather than ambiguity about the optimum.
 
-The analysis in Section~\ref{subsec:results} already identified three primary
-contributors to this gap: the fit between the heuristic's inductive bias and
-the optimal policy, the function-approximation error of the neural network,
-and the finite training horizon.
-
-It is useful to add a more general reading of this phenomenon. In a
-problem whose optimal policy is exactly representable as a deterministic,
-one-dimensional rule, the RL agent enters an asymmetric game: it must
-\emph{rediscover}, through exploration, a policy that the heuristic
-possesses from step one. This asymmetry mechanically vanishes as the
-structure of the problem becomes richer and the information required for
-the decision exceeds what a simple rule can encode.
-
-The sensitivity analysis in Section~\ref{subsec:sensitivity} sharpens
-this reading, but also tempers it. The heuristic used in the main
-comparison happens to sit on the plateau of its threshold sweep
-(thresholds $3$ and $5$ produce identical rewards), so
-Table~\ref{tab:results} reports the comparison against a near-optimal
-instance of a one-parameter rule. Yet even the worst heuristic
-threshold tested ($15$) remains above PPO: the rule family is robust
-to threshold mis-specification, whereas PPO in its current form is
-not. In a production setting this robustness of simple rules would be
-a further argument in their favour; the extensions listed in
-Section~\ref{subsec:improvements} are designed precisely to move the
-evaluation into regimes where the rule's simplicity becomes a
-liability rather than an asset.
+The sensitivity analysis in Section~\ref{subsec:sensitivity} adds engineering colour:
+the heuristic sits on a flat optimum for low thresholds, stays robust at looser
+thresholds, and still dominates PPO. Production teams may value that robustness,
+while researchers should treat it as evidence that parsimonious policies exhaust
+the toy model's headroom until couplings and partial observability enter the story
+(Section~\ref{subsec:improvements}).
 
 
 \subsection{Limitations of the current setup}
@@ -114,10 +96,11 @@ elides budget couplings, volume constraints and portfolio effects that lie
 at the heart of the original operational problem.
 
 \paragraph{Sensitivity to reward shaping.}
-The reward function involves several components whose coefficients are set
-manually. The threshold heuristic closely matches the maximum of this
-shaping. A revision of the relative weights may shift the optimum and
-materially change the ranking of policies.
+The reward function blends manually chosen coefficients. Because VI and the
+heuristic align on the same expectations, local rescaling would move all
+policies jointly; a systematic sensitivity grid remains future work, yet the
+present co-optimality already bounds how ``accidental'' the heuristic can be
+for the current weights.
 
 \paragraph{Absence of out-of-distribution evaluation.}
 Policies are only evaluated on episodes drawn from the same distribution
@@ -135,6 +118,12 @@ not natively explainable. This opacity is a barrier to adoption by business
 teams, who must justify coverage decisions to internal and external
 stakeholders.
 
+\paragraph{Governance and human oversight.}
+High-stakes renewals that affect patient-ready equipment should remain under
+human-in-the-loop approval, with immutable audit logs and periodic reviews of
+simulator parameters and reward weights to surface institutional or financial
+bias before automation scales.
+
 \paragraph{No hard operational constraints.}
 Contractual budget, exclusivities, renewal eligibility windows and
 contractual obligations do not appear explicitly in the MDP. In a production
@@ -148,12 +137,10 @@ encouraged by the reward.
 The limitations above suggest several concrete directions.
 
 \paragraph{Extension to the full installed base.}
-Moving from the single-equipment framing to the simultaneous management of a
-heterogeneous portfolio exposes couplings (global budget, volume
-constraints) and risk asymmetries that the single-threshold heuristic cannot
-exploit. A per-equipment factorized policy with a shared critic---in the
-spirit of the formulation sketched in Section~\ref{subsec:ppo}---constitutes
-a natural first step.
+Moving from the single-equipment framing to a heterogeneous portfolio exposes
+budget couplings and risk asymmetries that naïvely blow up tabular planning.
+Factorised critics, constrained optimisation and amortised RL then address
+regimes where threshold heuristics and brute-force VI lose traction together.
 
 \paragraph{Offline learning from historical data.}
 Once available, the operational traces of Philips France may serve as the

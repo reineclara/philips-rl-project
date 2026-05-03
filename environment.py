@@ -55,6 +55,16 @@ class ContractEnv:
             dtype=np.float32,
         )
 
+    def internal_tuple(self):
+        """Discrete MDP coordinate used by dp_solver (state at decision time)."""
+        return (
+            int(self.covered),
+            int(self.days_to_expiration),
+            int(self.contract_cost_level),
+            int(self.risk_level),
+            int(self.step_count),
+        )
+
     def step(self, action):
         r_cost = 0.0
         r_timing = 0.0

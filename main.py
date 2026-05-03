@@ -1,10 +1,9 @@
 """Train PPO, evaluate periodically, save the best model, compare baselines.
 
-This script also produces the rigorous experimental artifacts reported in the
-paper: mean + standard deviation + 95% confidence interval on all metrics,
-Welch's t-test between the PPO and Heuristic policies, and a sensitivity
-analysis over the heuristic's renew threshold. All aggregate numbers are
-written to `results.md` and `results.json` for easy paper integration.
+This script produces the empirical artifacts cited in the paper: mean ± SD ±
+95% CI for all metrics, Welch's tests, heuristic threshold sensitivity, and
+the performance of an exact tabular policy obtained by value iteration on the
+expected-reward MDP (DpSolver baseline). Aggregates go to ``results.{md,json}``.
 """
 
 import copy
@@ -26,12 +25,40 @@ import torch
 
 import config
 from agent import HeuristicAgent, PPOAgent, RandomAgent
+from dp_solver import compute_optimal_policy
 from environment import ContractEnv
 
 
 # ============================================================================
 # Rollouts
 # ============================================================================
+
+
+def evaluate_with_dp_policy(env, policy_table, seeds):
+    """Greedy rollout under a tabular policy keyed by ``env.internal_tuple()``."""
+    rewards, uncovered_steps, failures = [], [], []
+    for seed in seeds:
+        env.reset(seed=seed)
+        ep_r, ep_u, ep_f = 0.0, 0, 0
+        done = False
+        while not done:
+            action = policy_table[env.internal_tuple()]
+            _, reward, done, info = env.step(action)
+            ep_r += reward
+            ep_u += info["uncovered"]
+            ep_f += info["uncovered_failure"]
+        rewards.append(ep_r)
+        uncovered_steps.append(ep_u)
+        failures.append(ep_f)
+
+    return {
+        "rewards": rewards,
+        "uncovered_steps": uncovered_steps,
+        "uncovered_failures": failures,
+        "reward": float(np.mean(rewards)),
+        "uncovered_steps_mean": float(np.mean(uncovered_steps)),
+        "uncovered_failures_mean": float(np.mean(failures)),
+    }
 
 
 def collect_training_episode(env, agent):
@@ -236,31 +263,38 @@ def fmt(stats, decimals=2):
 
 
 def print_rigorous_comparison(results, n):
-    print("\n" + "=" * 88)
+    print("\n" + "=" * 108)
     print(
         f" Final comparison — {n} evaluation episodes, shared seeds "
         f"(mean ± SD  [95% CI])"
     )
-    print("=" * 88)
-    header = f"{'Metric':<30} {'Random':>18} {'Heuristic':>18} {'PPO':>18}"
+    print("=" * 108)
+    header = (
+        f"{'Metric':<26} {'Random':>20} {'Heuristic':>20} "
+        f"{'PPO':>20} {'VI (exp.)':>20}"
+    )
     print(header)
-    print("-" * 88)
+    print("-" * 108)
+    rows = ["random", "heuristic", "ppo", "vi_expected"]
     for metric_name, key in [
         ("Cumulative reward", "reward"),
         ("Uncovered steps",   "uncovered_steps"),
         ("Uncovered failures","uncovered_failures"),
     ]:
-        print(
-            f"{metric_name:<30} "
-            f"{fmt(results['random'][key]):>18} "
-            f"{fmt(results['heuristic'][key]):>18} "
-            f"{fmt(results['ppo'][key]):>18}"
-        )
-    print("=" * 88)
+        parts = [
+            fmt(results[row][key]) for row in rows
+        ]
+        print(f"{metric_name:<26} {parts[0]:>20} {parts[1]:>20} {parts[2]:>20} {parts[3]:>20}")
+    print("=" * 108)
 
 
 def plot_training_curve(
-    episode_rewards, eval_points, eval_rewards, random_r, heuristic_r
+    episode_rewards,
+    eval_points,
+    eval_rewards,
+    random_r,
+    heuristic_r,
+    vi_r=None,
 ):
     fig, ax = plt.subplots(figsize=(10, 5))
 
@@ -308,6 +342,13 @@ def plot_training_curve(
         color="tab:green",
         label=f"Heuristic baseline ({heuristic_r['reward']:.1f})",
     )
+    if vi_r is not None:
+        ax.axhline(
+            vi_r["reward"],
+            linestyle="--",
+            color="tab:purple",
+            label=f"VI expected-opt ({vi_r['reward']:.1f})",
+        )
 
     ax.set_xlabel("Episode")
     ax.set_ylabel("Cumulative reward")
@@ -347,22 +388,27 @@ def heuristic_sensitivity(env, seeds, thresholds):
 # ============================================================================
 
 
-def build_results(random_raw, heuristic_raw, ppo_raw, sensitivity, welch):
+def build_results(random_raw, heuristic_raw, ppo_raw, vi_raw,
+                  sensitivity, welch_ppo_heuristic, welch_ppo_vi):
     def pack(raw):
         return {
             "reward":              summarize(raw["rewards"]),
             "uncovered_steps":     summarize(raw["uncovered_steps"]),
             "uncovered_failures":  summarize(raw["uncovered_failures"]),
         }
+    th, ph, dfh = welch_ppo_heuristic
+    tv, pv, dfv = welch_ppo_vi
     return {
-        "random":     pack(random_raw),
-        "heuristic":  pack(heuristic_raw),
-        "ppo":        pack(ppo_raw),
-        "sensitivity": sensitivity,
+        "random":               pack(random_raw),
+        "heuristic":            pack(heuristic_raw),
+        "ppo":                  pack(ppo_raw),
+        "vi_expected":          pack(vi_raw),
+        "sensitivity":          sensitivity,
         "welch_ppo_vs_heuristic": {
-            "t":  welch[0],
-            "p":  welch[1],
-            "df": welch[2],
+            "t": th, "p": ph, "df": dfh,
+        },
+        "welch_ppo_vs_vi": {
+            "t": tv, "p": pv, "df": dfv,
         },
     }
 
@@ -375,9 +421,14 @@ def export_results(results, n_eval):
     lines.append("# Evaluation results\n")
     lines.append(f"All metrics are averaged over **{n_eval} evaluation episodes** "
                  "using the same seeds across policies for a fair comparison.\n")
+    lines.append(
+        "**Tabular VI** maximises $\\gamma$-discounted *expected* return under the "
+        "same transitions as `environment.py`; per-episode returns still vary "
+        "because failures are sampled in simulation.\n"
+    )
     lines.append("## Main comparison\n")
-    lines.append("| Metric | Random | Heuristic | PPO |")
-    lines.append("|---|---|---|---|")
+    lines.append("| Metric | Random | Heuristic | PPO | VI (expected MDP) |")
+    lines.append("|---|---|---|---|---|")
     for label, key in [
         ("Reward",             "reward"),
         ("Uncovered steps",    "uncovered_steps"),
@@ -386,14 +437,21 @@ def export_results(results, n_eval):
         lines.append(
             f"| {label} | {fmt(results['random'][key])} | "
             f"{fmt(results['heuristic'][key])} | "
-            f"{fmt(results['ppo'][key])} |"
+            f"{fmt(results['ppo'][key])} | "
+            f"{fmt(results['vi_expected'][key])} |"
         )
     lines.append("")
-    welch = results["welch_ppo_vs_heuristic"]
+    w1 = results["welch_ppo_vs_heuristic"]
     lines.append("## Welch's t-test (PPO vs Heuristic, reward)\n")
-    lines.append(f"- t = {welch['t']:.3f}")
-    lines.append(f"- p = {welch['p']:.4f}")
-    lines.append(f"- df ≈ {welch['df']:.1f}")
+    lines.append(f"- t = {w1['t']:.3f}")
+    lines.append(f"- p = {w1['p']:.4f}")
+    lines.append(f"- df ≈ {w1['df']:.1f}")
+    lines.append("")
+    w2 = results["welch_ppo_vs_vi"]
+    lines.append("## Welch's t-test (PPO vs Tabular VI, reward)\n")
+    lines.append(f"- t = {w2['t']:.3f}")
+    lines.append(f"- p = {w2['p']:.4f}")
+    lines.append(f"- df ≈ {w2['df']:.1f}")
     lines.append("")
     lines.append("## Heuristic sensitivity sweep (renew threshold)\n")
     lines.append("| Threshold | n | Mean | SD | 95% CI |")
@@ -408,6 +466,8 @@ def export_results(results, n_eval):
 
     print(f"\nResults exported to '{config.RESULTS_JSON_PATH}' and "
           f"'{config.RESULTS_MD_PATH}'.")
+
+
 
 
 # ============================================================================
@@ -431,6 +491,10 @@ def main():
 
     episode_rewards, eval_points, eval_rewards = train(env, agent, eval_seeds_train)
 
+    # Expected-optimal tabular policy (same gamma, expected failure reward).
+    print("\nSolving tabular value iteration (expected MDP)...")
+    _, vi_policy = compute_optimal_policy()
+
     # ----- Rigorous final evaluation (shared seeds across policies) -----
     print(f"\nFinal rigorous evaluation on {config.EVAL_EPISODES_FINAL} "
           f"episodes (shared seeds)...")
@@ -439,21 +503,29 @@ def main():
     random_raw    = evaluate(
         env, RandomAgent(env.action_dim, seed=config.SEED).act, eval_seeds_final
     )
+    vi_raw = evaluate_with_dp_policy(env, vi_policy, eval_seeds_final)
 
-    # Statistical test between the two top policies on per-episode rewards.
-    welch = welch_t_test(ppo_raw["rewards"], heuristic_raw["rewards"])
+    welch_ph = welch_t_test(ppo_raw["rewards"], heuristic_raw["rewards"])
+    welch_pv = welch_t_test(ppo_raw["rewards"], vi_raw["rewards"])
 
     # Heuristic sensitivity sweep over the renew threshold.
     sensitivity = heuristic_sensitivity(
         env, eval_seeds_final, config.HEURISTIC_THRESHOLDS
     )
 
-    results = build_results(random_raw, heuristic_raw, ppo_raw, sensitivity, welch)
+    results = build_results(
+        random_raw, heuristic_raw, ppo_raw, vi_raw, sensitivity,
+        welch_ph, welch_pv,
+    )
 
     print_rigorous_comparison(results, config.EVAL_EPISODES_FINAL)
     print(
         f"\nWelch's t-test PPO vs Heuristic: "
-        f"t = {welch[0]:.3f}, p = {welch[1]:.4f}, df ~ {welch[2]:.1f}"
+        f"t = {welch_ph[0]:.3f}, p = {welch_ph[1]:.4f}, df ~ {welch_ph[2]:.1f}"
+    )
+    print(
+        f"Welch's t-test PPO vs Tabular VI: "
+        f"t = {welch_pv[0]:.3f}, p = {welch_pv[1]:.4f}, df ~ {welch_pv[2]:.1f}"
     )
     print("\nHeuristic sensitivity sweep (renew threshold -> mean reward):")
     for s in sensitivity:
@@ -469,6 +541,7 @@ def main():
         episode_rewards, eval_points, eval_rewards,
         {"reward": results["random"]["reward"]["mean"]},
         {"reward": results["heuristic"]["reward"]["mean"]},
+        vi_r={"reward": results["vi_expected"]["reward"]["mean"]},
     )
 
 

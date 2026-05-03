@@ -43,24 +43,18 @@ piece of equipment and train a from-scratch Proximal Policy Optimization
 is not algorithmic: PPO, GAE and observation normalization are taken
 off-the-shelf; we contribute a clean MDP formulation for a
 decision-making problem that, to our knowledge, has not been cast as RL
-in the published literature, together with a statistically rigorous
-evaluation protocol. On $100$ evaluation episodes drawn from a shared
-seed pool, PPO reaches a mean reward of $44.83 \pm 20.05$ (95\% CI
-$[40.90,\,48.76]$), significantly above a random baseline
-($-241.44 \pm 92.66$) and significantly below a threshold-based
-heuristic ($58.06 \pm 3.93$; Welch's two-sided $t$-test $t = -6.48$,
-$p < 10^{-4}$). PPO's standard deviation is more than five times that
-of the heuristic, indicating residual training instability. A
-sensitivity sweep over the heuristic's renewal threshold shows that
-the rule is robust across its operating range ($49.14$ to $58.06$
-over thresholds $3$--$15$), and that PPO is currently below all five
-tested thresholds. We interpret this as a quantitative statement about
-the regime in which a simple threshold rule already captures most of
-the available return, and outline the extensions---richer state
-representations, heterogeneous portfolios, offline training on
-operational logs, non-stationary dynamics---under which reinforcement
-learning is expected to provide a clearer advantage over hand-designed
-rules.
+in the published literature, together with a statistically rigorous evaluation
+protocol that now includes synchronous value iteration (\texttt{dp\_solver.py})
+as a tabular Bellman reference on an augmented finite MDP. On $100$ shared seeds,
+PPO attains $44.83 \pm 20.05$ ($95\%$ CI $[40.90,\,48.76]$), far above random
+($-241.44 \pm 92.66$), far below a threshold heuristic ($58.06 \pm 3.93$; Welch
+$t = {-}6.48$, $p < 10^{-4}$), and materially below synchronous VI rollout
+statistics (${\approx}58.08 \pm 4.0$, mean nearly identical because VI and heuristic
+Welch-tests $p \approx 0.97$). Interpretationally, RL competes against co-optimal
+planning benchmarks, not an underspecified folklore rule.
+
+The heuristic remains robust across its threshold sweep ($49.14$--$58.06$), while PPO variance is five-times higher. Extensions span richer states, heterogeneous portfolios,
+offline histories, tighter PPO hyper-parameter ablations---avenues where greedy tabulation loses tractability faster than amortized RL.
 \end{abstract}
 
 \input{sections/introduction}

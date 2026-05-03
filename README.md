@@ -31,10 +31,11 @@ Coefficients live in `config.py` and keep per-step rewards roughly in `[-5, +3]`
 ## Project structure
 
 ```
-config.py         # hyperparameters (env + PPO + training + I/O)
-environment.py    # ContractEnv: reset/step, state + actions + reward
-agent.py          # RunningMeanStd, RandomAgent, HeuristicAgent, PPOAgent
-main.py           # training loop, periodic eval, best-model save, plot, comparison
+config.py          # hyperparameters (env + PPO + training + I/O)
+environment.py     # ContractEnv (+ internal_tuple for VI alignment)
+agent.py           # RunningMeanStd, RandomAgent, HeuristicAgent, PPOAgent
+dp_solver.py       # discounted value iteration for the expected MDP (exact tabular greedy policy)
+main.py            # train PPO + rigorous eval vs random/heuristic/VI + export results.md/json
 requirements.txt  # numpy, torch, matplotlib
 ```
 
@@ -61,21 +62,16 @@ python main.py
 2. **Evaluates every 100 episodes** (greedy policy, fixed eval seeds).
 3. **Saves the best model** to `best_model.pt` whenever the evaluation reward
    improves.
-4. After training, **reloads the best model** and runs a final comparison
-   against two baselines:
-   - `RandomAgent`    — uniformly random policy
-   - `HeuristicAgent` — rule-based: renew if uncovered, extend if close to
-     expiration, do nothing otherwise.
-5. **Prints a comparison table** (Random vs Heuristic vs PPO) with:
-   - average reward (higher is better)
-   - average uncovered steps (lower is better)
-   - average uncovered failures (lower is better).
-6. **Saves a training curve** to `training_curve.png` (matplotlib), showing
-   raw training reward, its moving average, evaluation rewards, and the two
-   baseline levels as horizontal lines.
+4. After training, **reloads the best model** and runs the rigorous **100-seed**
+   suite shared across `RandomAgent`, `HeuristicAgent`, PPO's greedy actor and
+   the tabular oracle from **`dp_solver.py`**.
+5. **Exports** Welch tests (PPO\,vs heuristic, PPO\,vs VI), heuristic threshold
+   sensitivities and metric tables to **`results.md` / `results.json`**.
+6. Saves **`training_curve.png`** showing training/eval traces plus dashed
+   baseline means (remember to mirror the PNG inside **`figures/`** for LaTeX).
 
-All three agents are evaluated on the **same 20 random seeds**, so the
-comparison is fair.
+All stochastic policies confront the **same simulator seeds**, so aggregates are directly comparable (`config.EVAL_EPISODES_FINAL = 100` during the exported run).
+
 
 ## Configuration
 

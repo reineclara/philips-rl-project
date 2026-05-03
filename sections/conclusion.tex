@@ -10,28 +10,24 @@ entirely in a reproducible simulator built in the absence of direct
 access to Philips France's operational data. The contribution is
 applicative: we do not propose a new algorithm, but we provide a clean
 MDP formulation, a reproducible training pipeline, and a statistically
-grounded comparison with two baselines.
+grounded comparison with three baselines: uniform random actions, a
+threshold heuristic whose parameter is swept, and a greedy policy from
+discounted value iteration on the tabulated expected MDP.
 On $100$ evaluation episodes drawn from a shared seed pool, the PPO
 agent reaches a mean reward of $44.83 \pm 20.05$ ($95\%$ confidence
-interval $[40.90, 48.76]$), significantly above the random policy
-($-241.44 \pm 92.66$) and significantly below the threshold-based
-heuristic ($58.06 \pm 3.93$; Welch's two-sided $t$-test $t = -6.48$,
-$p < 10^{-4}$). The heuristic is robust across its operating range
-(reward $49.14$ to $58.06$ for thresholds $3$--$15$), and PPO is
-currently below all five tested thresholds. PPO's variance
-($\mathrm{SD} = 20.05$) is more than five times that of the heuristic,
-indicating that the gap is driven by both a lower mean and a higher
-episode-to-episode volatility.
-Taken together, these observations show that a standard PPO pipeline
-recovers a competent coverage policy from scratch, without receiving
-any business rule, but does not yet match a hand-tuned threshold rule
-in this deliberately simplified environment. The residual advantage of
-the heuristic reflects the structural simplicity of the considered
-problem: a one-dimensional rule on the time to expiration is
-near-optimal here, and the added value of reinforcement learning is
-expected to grow with the complexity and variability of real
-environments, where no simple rule can jointly capture dependencies
-between cost, risk and temporal dynamics.
+interval $[40.90, 48.76]$), far above the random policy
+($-241.44 \pm 92.66$) and far below both the heuristic
+($58.06 \pm 3.93$) and VI ($58.08 \pm 3.96$), with Welch tests against PPO at
+$p < 10^{-4}$ for either co-optimal reference while heuristic and VI means are
+statistically indistinguishable ($p \approx 0.97$). The heuristic remains
+robust across its threshold sweep ($49.14$ to $58.06$), yet even its weakest
+instantiation exceeds PPO. PPO's reward standard deviation is roughly five
+times larger, underscoring reliability concerns on identical seeds.
+Taken together, these observations show that PPO recovers non-trivial behaviour
+from reward alone but does not match \emph{any} certificate of Bellman optimality
+available in this toy model. Reinforcement learning's comparative advantage is
+expected only once portfolios, partial observability and budget couplings break
+the parsimony that tabulation already exhausts here.
 These results rely on a deliberately simplified simulator, a
 four-dimensional state representation and a training budget of $3{,}000$
 episodes, all of which bound the scope of the conclusions.

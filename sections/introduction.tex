@@ -50,7 +50,11 @@ formulation, the reproducible experimental setup, and the rigorous
 head-to-head comparison with business-rule baselines in a domain---the
 coverage management of hospital equipment---that, to our knowledge, has
 not been cast as a reinforcement-learning problem in the published
-literature. More specifically, the contributions of this work are:
+literature. We therefore target readers interested in methodological hygiene and
+\textbf{applied} reinforcement learning rather than those seeking fundamentally new RL
+operators; top-tier novelty expectations should be tempered accordingly while the
+engineering question---how RL compares to exhaustive planning certificates on a clinically
+motivated MDP---still carries pedagogical merit. More specifically, the contributions of this work are:
 \begin{itemize}
     \item \textbf{Problem formalization.} We formalize single-equipment
           contract-coverage optimization as a finite-horizon Markov
@@ -63,18 +67,21 @@ literature. More specifically, the contributions of this work are:
           and intervention dynamics under parametric control, with fully
           deterministic reproducibility via seeded initial states and
           failure processes.
+    \item \textbf{Bellman reference.} We compute a greedy tabular optimum through
+          discounted value iteration on an augmented finite MDP that mirrors the
+          simulator's transition logic in expectation (Section~\ref{subsec:vi-baseline}).
+          This certificate clarifies achievable reward under our modelling commitments
+          and highlights when rule-based controllers are analytically aligned with DP.
     \item \textbf{Rigorous empirical comparison.} We train a Proximal
-          Policy Optimization agent and compare it against a uniform
-          random policy and a threshold-based rule-based heuristic on
-          $100$ evaluation episodes sharing fixed seeds, reporting
-          means, standard deviations, $95\%$ confidence intervals and a
-          Welch's $t$-test between the two leading policies.
-    \item \textbf{Critical analysis.} We identify the regime in which a
-          simple business rule captures the optimal policy almost by
-          construction, we quantify the residual gap, and we articulate
-          the conditions---richer state, portfolio couplings, non-
-          stationary dynamics---under which a learned policy is expected
-          to surpass hand-designed rules.
+          Policy Optimization agent and compare it against a uniform random policy,
+          a threshold-based heuristic spanning multiple threshold values, and the
+          tabular VI rollout on $100$ shared seeds (means, standard deviations,
+          $95\%$ confidence intervals, Welch tests).
+    \item \textbf{Critical analysis.} We delineate regimes where simplistic rules
+          coincide with exhaustive planning on the present toy MDP versus regimes where
+          portfolios, stochastic couplings or partial observability are expected to
+          break parsimony, outlining concrete extensions validated by roadmap items in
+          Section~\ref{sec:discussion}.
 \end{itemize}
 
 \paragraph{Scope.} We deliberately restrict the experiments to a single
