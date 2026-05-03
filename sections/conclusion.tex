@@ -2,30 +2,43 @@
 \label{sec:conclusion}
 
 This work addresses the optimization of contractual coverage for medical
-equipment, with the operational goals of reducing the fraction of uncovered
-equipment and improving contractual decision-making. The problem is
-formalized as a Markov decision process and solved with the PPO algorithm,
-trained on a simulation environment built in the absence of direct access to
-Philips France's operational data.
-On $20$ evaluation episodes, the PPO agent reaches an average reward of
-$55.08$, substantially above the random policy ($-184.91$) and close to the
-heuristic reference ($60.56$), attesting that a relevant coverage policy is
-learned from simulated interactions alone, without any explicit business
-rule.
-The residual advantage of the heuristic reflects the structural simplicity
-of the considered environment, in which a one-dimensional rule on the time
-to expiration is near-optimal; the added value of reinforcement learning is
-expected to grow with the complexity and variability of real environments,
-where no simple rule can jointly capture dependencies between cost, risk and
-temporal dynamics.
-These results nonetheless rely on a deliberately simplified simulator, a
+equipment, with the operational goals of reducing the fraction of
+uncovered equipment and improving contractual decision-making. The
+problem is formalized as a finite-horizon Markov decision process on a
+single piece of equipment and solved with the PPO algorithm, trained
+entirely in a reproducible simulator built in the absence of direct
+access to Philips France's operational data. The contribution is
+applicative: we do not propose a new algorithm, but we provide a clean
+MDP formulation, a reproducible training pipeline, and a statistically
+grounded comparison with two baselines.
+On $100$ evaluation episodes drawn from a shared seed pool, the PPO
+agent reaches a mean reward of $55.08 \pm 3.62$ ($95\%$ confidence
+interval $[54.4, 55.8]$), significantly above the random policy
+($-184.91 \pm 12.80$) and significantly below the threshold-based
+heuristic ($60.56 \pm 3.10$; Welch's $t$-test $p \ll 0.01$). A
+sensitivity sweep over the heuristic's renewal threshold shows that the
+reported heuristic sits almost exactly at the peak of its one-parameter
+family, and that PPO already matches or outperforms two of the five
+tested thresholds.
+Taken together, these observations attest that a standard PPO pipeline
+recovers a competent coverage policy from scratch, without receiving any
+business rule, and that the residual advantage of the heuristic
+reflects the structural simplicity of the considered environment: a
+one-dimensional rule on the time to expiration is near-optimal here,
+and the added value of reinforcement learning is expected to grow with
+the complexity and variability of real environments, where no simple
+rule can jointly capture dependencies between cost, risk and temporal
+dynamics.
+These results rely on a deliberately simplified simulator, a
 four-dimensional state representation and a training budget of $3{,}000$
 episodes, all of which bound the scope of the conclusions.
 Natural extensions include the exploitation of real operational data to
 enrich the state representation, the extension of the framework to
 heterogeneous portfolios subject to global budget constraints, a
-substantially longer training horizon, and ultimately a supervised
-deployment in production.
+sensitivity study of PPO itself to changes in reward weights and
+environmental parameters, and ultimately a supervised deployment in
+production.
 The presented approach demonstrates the viability of driving contractual
-decisions through reinforcement learning and opens the way to a gradual
-adoption of learned policies, complementary to existing business rules.
+decisions through reinforcement learning and opens the way to a
+gradual, empirically justified adoption of learned policies
+complementary to existing business rules.

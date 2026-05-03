@@ -3,118 +3,150 @@
 
 This section formalizes the contract-coverage optimization problem as a
 Markov decision process (MDP) and describes the reinforcement-learning
-algorithm we adopt, Proximal Policy Optimization (PPO).
+algorithm we adopt, Proximal Policy Optimization (PPO). We restrict the
+formulation to the exact scope of our empirical study: a \emph{single
+piece} of medical equipment followed over a finite daily horizon. This
+deliberate simplification makes the analysis tractable and keeps the
+theoretical description and the implementation in strict one-to-one
+correspondence; extensions to a portfolio of heterogeneous equipment are
+discussed in Section~\ref{sec:discussion}.
 
 
 \subsection{MDP formulation}
 \label{subsec:mdp}
 
-We model the problem as a finite-horizon MDP in which the state describes
-the contractual and operational posture of the managed equipment, the actions
-correspond to coverage decisions, transitions capture failure, renewal and
-aging dynamics, and the reward balances operational costs against the
-consequences of non-coverage. Time is discretized on a monthly grid and
-decisions are taken on the full set of managed equipment.
+We model the problem as a finite-horizon MDP
+$\mathcal{M} = (\mathcal{S}, \mathcal{A}, P, r, T)$, with daily time steps
+and horizon $T = 120$ days, tracking a single piece of equipment.
 
 
 \paragraph{State space.}
-At each time step, the state describes the contractual and operational
-posture of the portfolio as a whole. For each piece of equipment, the local
-state combines the current coverage type (no coverage, manufacturer warranty,
-warranty extension, or maintenance contract), the time remaining before
-expiration of the current coverage, the age of the equipment, its cumulative
-usage, the recent history of interventions and failures, and static
-attributes such as modality, clinical criticality, site of installation and
-risk class. The global state aggregates these individual descriptions and
-adds the residual contractual budget available to the organization.
+The state at step $t$ is a four-dimensional vector
+\[
+    s_t = (\mathrm{covered}_t,\;
+           \mathrm{days\_to\_exp}_t,\;
+           \mathrm{cost\_level},\;
+           \mathrm{risk\_level}),
+\]
+where $\mathrm{covered}_t \in \{0, 1\}$ indicates whether an active
+contract covers the equipment, $\mathrm{days\_to\_exp}_t$ is the remaining
+number of days before expiration of the current coverage,
+$\mathrm{cost\_level} \in \{0, 1, 2\}$ discretizes the contractual cost
+(low, medium, high), and $\mathrm{risk\_level} \in \{0, 1, 2\}$
+discretizes the equipment risk class (low, medium, high). The two
+discrete attributes are sampled at the start of each episode and remain
+constant throughout. All four components are normalized to the unit
+interval before being fed to the policy.
 
 
 \paragraph{Action space.}
-At each time step, the agent chooses, for each piece of equipment, a coverage
-decision drawn from a finite set: maintain the current situation, subscribe
-to a new coverage, renew the existing coverage, raise the service level,
-lower the service level, or terminate the ongoing coverage. Because the joint
-action space is combinatorial, we restrict it to feasible decisions filtered
-by contractual constraints such as eligibility dates, exclusivities and
-available budget. To keep the dimension tractable, the policy is factorized
-per piece of equipment, each being assigned a decision conditioned on the
-global state.
+The action space is discrete with three elements:
+\[
+    \mathcal{A} = \{\, 0: \text{do nothing},\;
+                      1: \text{renew contract},\;
+                      2: \text{extend warranty} \,\}.
+\]
+A \emph{renewal} (action 1) resets the remaining coverage to a fixed
+duration ($\mathrm{RENEWAL\_DAYS} = 30$) and restores the covered status
+if the equipment was uncovered. A \emph{warranty extension} (action 2)
+adds a fixed duration ($\mathrm{EXTENSION\_DAYS} = 30$, capped at
+$\mathrm{MAX\_COVERED\_DAYS} = 60$) at a reduced cost, but requires an
+already-active contract; invoking it while uncovered incurs a small
+no-op penalty.
 
 
 \paragraph{Reward function.}
-The reward aggregates three components. First, the expected service revenue
-associated with active contracts on the installed base. Second, the
-contractual costs incurred by coverage decisions. Third, two penalties: one
-applied per equipment that remains uncovered, and one applied to failures
-occurring while no active coverage is in place. The weighting coefficients
-of these penalties are calibrated on historical data to reflect the
-operational and financial priorities of the organization. The agent's
-objective is to maximize the expected discounted return over the decision
-horizon.
+The per-step reward aggregates six components, each chosen so that the
+total remains in a numerically stable range and induces a clear ordering
+between desirable and undesirable decisions:
+\begin{align*}
+r_t \;=\; &\; r^{\text{coverage}}_t
+          + r^{\text{timing}}_t
+          + r^{\text{cost}}_t
+          + r^{\text{expiry}}_t
+          + r^{\text{early}}_t
+          + r^{\text{failure}}_t.
+\end{align*}
+The continuous coverage term is $+\mathrm{COVERAGE\_BONUS}$ while covered
+and $-\mathrm{UNCOVERED\_PENALTY}$ otherwise. The timing term rewards
+renewals or extensions issued close to expiration
+($+\mathrm{RENEWAL\_CLOSE\_BONUS}$ when
+$\mathrm{days\_to\_exp}_t \le 5$) and penalizes early renewals
+($-\mathrm{RENEWAL\_EARLY\_PENALTY}$ when
+$\mathrm{days\_to\_exp}_t \ge 20$). The cost term is a contract cost
+proportional to $\mathrm{cost\_level}$ (smaller for extensions than for
+full renewals). The expiration term is a one-shot penalty applied the
+exact step a contract expires without renewal. The failure term is a
+one-shot penalty whenever a failure occurs while the equipment is
+uncovered, sampled with probability proportional to
+$(1 + \mathrm{risk\_level})$. Numerical coefficients are listed in
+Section~\ref{subsec:training}.
 
 
 \paragraph{Transition dynamics.}
-The transition between consecutive time steps decomposes into four
-sub-processes that are independent conditionally on the chosen action.
-The first reflects contractual evolution: the coverage type and the remaining
-time before expiration are updated according to the chosen decision and time
-decay, with automatic transition to the uncovered state when a contract
-expires without renewal. The second reflects aging and usage: age is
-incremented at each step and cumulative usage evolves according to a class-
-specific distribution. The third models failures: their probability is
-learned from intervention histories and conditions the update of the recent
-history. The last tracks the contractual budget, reduced by the costs
-incurred at each step and periodically replenished at the beginning of the
-fiscal period. This decomposition supports estimating the components of the
-dynamics separately and instantiating a reproducible simulator that respects
-the Markov property on the augmented state.
+At each step, the environment sequentially (i) applies the chosen action,
+(ii) decrements $\mathrm{days\_to\_exp}_t$ by one and triggers expiration
+if the counter reaches zero, (iii) samples a Bernoulli failure indicator
+with risk-conditional probability, and (iv) emits the scalar reward. The
+static attributes $\mathrm{cost\_level}$ and $\mathrm{risk\_level}$ are
+unchanged across a full episode, so the only stochastic transitions
+concern the coverage counter and the failure process. The dynamics are
+fully Markovian in the four-dimensional state.
 
 
 \subsection{Proximal Policy Optimization (PPO)}
 \label{subsec:ppo}
 
-To solve the MDP defined in Section~\ref{subsec:mdp}, we use the \emph{Proximal
-Policy Optimization} (PPO) algorithm~\cite{schulman2017ppo}, a policy-gradient
-method recognized for its empirical stability and implementation simplicity,
-and particularly suited to the large-dimensional discrete action spaces
-considered here.
+To solve the MDP defined in Section~\ref{subsec:mdp}, we use the
+\emph{Proximal Policy Optimization} (PPO)
+algorithm~\cite{schulman2017ppo}, a policy-gradient method recognized for
+its empirical stability and implementation simplicity.
 
 
 \paragraph{Principle.}
 PPO belongs to the family of actor-critic methods. The algorithm jointly
-trains two components: a stochastic policy, which maps each state to a
-probability distribution over admissible actions, and a value function, which
-estimates the expected future return from a given state. Both components are
-parameterized by neural networks and learned from trajectories collected
-under the current policy. The advantage estimate, which measures the marginal
-gain of an action relative to the average value of the state, is obtained
-through the GAE estimator~\cite{schulman2016gae}, which provides a
-controllable trade-off between bias and variance.
+trains two components: a stochastic policy $\pi_\theta(a \mid s)$ that
+maps each state to a distribution over the three admissible actions, and
+a value function $V_\phi(s)$ that estimates the expected future return
+from state $s$. Both components are parameterized by neural networks
+sharing a common two-layer encoder (64 units, $\tanh$ activations) with
+separate softmax policy and scalar value heads. They are learned from
+trajectories collected under the current policy. The advantage estimate,
+which measures the marginal gain of an action relative to the average
+value of the state, is obtained through Generalized Advantage Estimation
+(GAE)~\cite{schulman2016gae}, with a discount $\gamma = 0.99$ and GAE
+coefficient $\lambda = 0.95$, providing a controllable trade-off between
+bias and variance.
 
 
 \paragraph{Clipped objective.}
-The specificity of PPO lies in its learning objective. From the collected
-trajectories, the algorithm builds a surrogate objective comparing the
-current policy to the policy that produced the data. To prevent overly large
-updates likely to destabilize learning, this objective is \emph{clipped}:
-excessively large policy changes are truncated, which guarantees that the
-optimized policy remains close to the behavior policy. This implicit
-constraint gives PPO its characteristic stability. The value function is
-trained by minimizing the squared return-prediction error, and an entropy
-bonus is added to the global objective to encourage exploration and to
-prevent premature convergence to a deterministic policy.
+The specificity of PPO lies in its learning objective. Let
+$r_t(\theta) = \pi_\theta(a_t \mid s_t) / \pi_{\theta_{\text{old}}}(a_t \mid s_t)$
+denote the likelihood ratio between the current policy and the behavior
+policy that produced the trajectory, and let $\hat{A}_t$ denote the
+normalized GAE advantage. PPO maximizes
+\[
+    \mathcal{L}^{\text{clip}}(\theta)
+    = \mathbb{E}_t \Big[
+        \min \big(r_t(\theta)\, \hat{A}_t,\;
+                 \mathrm{clip}(r_t(\theta),\, 1 - \epsilon,\, 1 + \epsilon)\, \hat{A}_t
+            \big)
+      \Big],
+\]
+with clip parameter $\epsilon = 0.2$. The value function is trained by
+minimizing the squared return-prediction error, and an entropy bonus is
+added to the global objective to encourage exploration and to prevent
+premature convergence to a deterministic policy.
 
 
-\paragraph{Application to the coverage problem.}
-The policy is instantiated in factorized form per piece of equipment. A
-shared encoder produces an internal representation of each local state, and
-an independent decision head per equipment outputs the distribution over
-admissible actions. The critic shares the same encoder and aggregates the
-local representations via pooling before predicting the global state value.
-Contractual and budgetary constraints are enforced by \emph{masking}
-infeasible actions before the softmax, which preserves the validity of the
-policy while restricting exploration to admissible decisions. Training is
-conducted offline on the simulator described in
-Section~\ref{sec:experiments}, which enables intensive exploration without
-operational risk and yields a reproducible evaluation of the learned
-policies prior to any deployment.
+\paragraph{Implementation details.}
+Observations are normalized online through a running estimate of their
+mean and variance (Welford's algorithm) and clipped to $[-5, 5]$ before
+being fed to the network. Advantages are normalized per batch. At each
+iteration, a full episode is collected under the current policy, and the
+policy--value pair is updated for four epochs over mini-batches of size
+$64$. A complete list of hyperparameters is given in
+Section~\ref{subsec:training}. Training is conducted entirely offline on
+the simulator, which enables intensive exploration without operational
+risk and yields a reproducible evaluation of the learned policy prior to
+any deployment.

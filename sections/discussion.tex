@@ -9,6 +9,29 @@ then identifies the limitations of the current setup and the directions for
 improvement.
 
 
+\subsection{Positioning of the contribution}
+\label{subsec:positioning}
+
+Before discussing the empirical gap in detail, it is useful to restate
+what this paper does and does not claim. We do not contribute a new RL
+algorithm: every component of our pipeline (PPO, GAE, observation
+normalization, advantage normalization, entropy bonus) is taken
+off-the-shelf from prior work~\cite{schulman2017ppo,schulman2016gae,
+andrychowicz2021matters}. The contribution is applicative and
+methodological in a narrower sense: we isolate a business
+decision-making problem whose RL formulation has not, to our knowledge,
+been published; we build the smallest non-trivial simulator capable of
+carrying that decision; and we subject the resulting pipeline to a
+statistically sound comparison against two natural baselines---a random
+policy and a rule-based heuristic whose only parameter has itself been
+swept---with explicit confidence intervals and a significance test.
+Under this scope, the empirical findings reported below should be read
+as an \emph{upper bound on the expected performance of a minimal,
+honestly reported, reproducible PPO pipeline on this problem class},
+rather than as a claim about the best achievable performance in
+production.
+
+
 \subsection{Why PPO outperforms the random policy}
 \label{subsec:why-ppo-beats-random}
 
@@ -48,14 +71,26 @@ contributors to this gap: the fit between the heuristic's inductive bias and
 the optimal policy, the function-approximation error of the neural network,
 and the finite training horizon.
 
-It is useful to add a more general reading of this phenomenon. In a problem
-whose optimal policy is exactly representable as a deterministic,
+It is useful to add a more general reading of this phenomenon. In a
+problem whose optimal policy is exactly representable as a deterministic,
 one-dimensional rule, the RL agent enters an asymmetric game: it must
-\emph{rediscover}, through exploration, a policy that the heuristic possesses
-from step one. This asymmetry mechanically vanishes as the structure of the
-problem becomes richer and the information required for the decision exceeds
-what a simple rule can encode. The extensions listed in
-Section~\ref{subsec:improvements} are designed precisely to move the
+\emph{rediscover}, through exploration, a policy that the heuristic
+possesses from step one. This asymmetry mechanically vanishes as the
+structure of the problem becomes richer and the information required for
+the decision exceeds what a simple rule can encode.
+
+The sensitivity analysis in Section~\ref{subsec:sensitivity} sharpens
+this reading. The heuristic used in the main comparison happens to sit
+almost exactly at the reward peak of its threshold sweep, so
+Table~\ref{tab:results} reports the comparison against the best possible
+instance of a one-parameter rule. Under an adversarial or merely
+off-peak instantiation of the same rule family, PPO already matches or
+outperforms three of the five tested thresholds. In a production
+setting where the optimal threshold is unknown and would itself have to
+be discovered---potentially across multiple equipment classes or
+contract types---the relative cost of learning the policy from
+interactions becomes a much weaker disadvantage. The extensions listed
+in Section~\ref{subsec:improvements} are designed precisely to move the
 evaluation into regimes where this asymmetry reverses.
 
 
@@ -84,9 +119,14 @@ shaping. A revision of the relative weights may shift the optimum and
 materially change the ranking of policies.
 
 \paragraph{Absence of out-of-distribution evaluation.}
-Policies are only evaluated on episodes drawn from the same distribution as
-those used for training. No experiment quantifies the robustness of PPO to a
-distribution shift, despite such shifts being inevitable in production.
+Policies are only evaluated on episodes drawn from the same distribution
+as those used for training. No experiment quantifies the robustness of
+PPO to a distribution shift, despite such shifts being inevitable in
+production. The heuristic's robustness to a change in the renewal
+threshold is characterised in Section~\ref{subsec:sensitivity}, but the
+analogous sensitivity of PPO to environmental parameters (reward
+weights, failure rates, cost levels) is not yet reported and is an
+explicit item on the agenda of Section~\ref{subsec:improvements}.
 
 \paragraph{Limited interpretability.}
 The learned policy is represented by a neural network whose decisions are

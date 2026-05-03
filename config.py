@@ -37,9 +37,18 @@ OBS_CLIP = 5.0                  # clip normalized obs to [-OBS_CLIP, +OBS_CLIP]
 NUM_EPISODES = 3000
 LOG_EVERY = 100
 EVAL_INTERVAL = 100             # evaluate every N episodes
-EVAL_EPISODES = 20
+EVAL_EPISODES = 20              # used during training (cheap periodic check)
+EVAL_EPISODES_FINAL = 100       # used once, at the end, for rigorous comparison
 SEED = 42
+
+# === Heuristic sensitivity analysis ===
+# Thresholds tested for the heuristic "renew when uncovered, extend when
+# days_to_expiration <= threshold". A sweep across these values quantifies
+# the sensitivity of the heuristic baseline to its only tunable parameter.
+HEURISTIC_THRESHOLDS = [3, 5, 7, 10, 15]
 
 # === I/O ===
 BEST_MODEL_PATH = "best_model.pt"
 TRAINING_CURVE_PATH = "training_curve.png"
+RESULTS_MD_PATH = "results.md"
+RESULTS_JSON_PATH = "results.json"

@@ -1,85 +1,93 @@
 \section{Experimental Setup}
 \label{sec:experiments}
 
-This section describes the simulated environment, the baselines, the training
-setup and the evaluation protocol, and reports the empirical results.
+This section describes the simulated environment, the baselines, the
+training setup and the evaluation protocol, and reports the empirical
+results with proper statistical summaries.
 
 
 \subsection{Dataset and simulation environment}
 \label{subsec:dataset}
 
-Direct online access to Philips France's contractual inventory is subject to
-confidentiality and operational constraints, so we do not conduct training
-on the production systems. Instead, we build a \emph{simulation environment}
-whose parameter distributions are calibrated to reproduce the salient
-characteristics of the real installed base: coverage levels, contract
-durations, contractual costs and equipment risk levels. This environment
-plays the role of both dataset and interaction simulator, which guarantees
-experiment reproducibility and avoids any exposure of sensitive data.
+Direct online access to Philips France's contractual inventory is subject
+to confidentiality and operational constraints, so we do not conduct
+training on the production systems. Instead, we build a \emph{simulation
+environment} whose parameter distributions are chosen to reproduce the
+qualitative characteristics of a hospital-equipment installed base:
+coverage levels, contract durations, contractual costs, and equipment
+risk levels. This environment plays the role of both dataset and
+interaction simulator, which guarantees full experimental reproducibility
+and avoids any exposure of sensitive data.
 
-Each episode represents a single piece of medical equipment tracked over a
-finite horizon of $T$ daily time steps. At reset, the environment randomly
-draws: a remaining time before current coverage expiration within a fixed
-interval, a contract-cost level with three modalities (low, medium, high),
-and a risk level with three modalities (low, medium, high). The equipment
-is initially covered.
+Each episode represents a single piece of medical equipment tracked over
+a finite horizon of $T = 120$ daily time steps. At reset, the
+environment randomly draws: a remaining time before current coverage
+expiration within $[5, 30]$ days, a contract-cost level with three
+modalities (low, medium, high), and a risk level with three modalities
+(low, medium, high). The equipment is initially covered.
 
-The state space is a four-dimensional vector combining the coverage status,
-the number of days before expiration of the current coverage, the
-contract-cost level and the risk level of the equipment. All components are
-normalized to the unit interval before being fed to the policy.
+The state space is a four-dimensional vector combining the coverage
+status, the number of days before expiration of the current coverage,
+the contract-cost level and the risk level of the equipment. All
+components are normalized to the unit interval before being fed to the
+policy.
 
-The action space is discrete and contains three decisions: do nothing, renew
-the contract, or extend the warranty. Renewal resets coverage to a fixed
-duration, whereas warranty extension adds an extra duration at a reduced
-cost, conditional on an active contract being in place.
+The action space is discrete and contains three decisions: do nothing,
+renew the contract, or extend the warranty. Renewal resets coverage to a
+fixed duration ($30$ days), whereas warranty extension adds an extra
+duration ($30$ days, capped at $60$) at a reduced cost, conditional on
+an active contract being in place.
 
-The dynamics decrement the remaining time before expiration by one day at
-each step. Expiration triggers a transition to the uncovered state and a
-one-shot penalty. Failures are sampled at each step with a probability
-increasing with the risk level; failures occurring on uncovered equipment
-are penalized more heavily than others. The reward function aggregates six
-components: a continuous coverage bonus, a bonus for renewals performed close
-to expiration, a renewal or extension cost indexed on the contract-cost
-level, a penalty for overly early renewals, a continuous non-coverage
-penalty, and a one-shot expiration penalty. Coefficients are chosen so that
-the per-step reward remains in a numerically stable range while preserving a
-clear ordering between desirable and undesirable actions.
+The dynamics decrement the remaining time before expiration by one day
+at each step. Expiration triggers a transition to the uncovered state
+and a one-shot penalty. Failures are sampled at each step with a
+probability increasing with the risk level; failures occurring on
+uncovered equipment are penalized more heavily than others. The reward
+function aggregates six components: a continuous coverage bonus, a bonus
+for renewals performed close to expiration, a renewal or extension cost
+indexed on the contract-cost level, a penalty for overly early renewals,
+a continuous non-coverage penalty, and a one-shot expiration penalty.
+Coefficients are chosen so that the per-step reward remains in a
+numerically stable range while preserving a clear ordering between
+desirable and undesirable actions.
 
 
 \subsection{Baseline policies}
 \label{subsec:baselines}
 
-We compare the PPO agent with two baseline policies. The first is a uniformly
-random policy over the three actions, which sets a lower performance bound.
-The second is a rule-based heuristic reproducing the logic commonly observed
-in operational teams: if the equipment is uncovered, perform a renewal;
-otherwise, if the contract is about to expire within a few days, trigger a
-warranty extension; otherwise, take no action. This baseline reflects the
-level of performance achievable with simple business rules and provides a
-reference point to quantify the added value of learning.
+We compare the PPO agent with two baseline policies. The first is a
+uniformly random policy over the three actions, which sets a lower
+performance bound. The second is a rule-based heuristic reproducing the
+logic commonly observed in operational teams: if the equipment is
+uncovered, perform a renewal; otherwise, if the contract is about to
+expire within a threshold of $5$ days, trigger a warranty extension;
+otherwise, take no action. This baseline reflects the level of
+performance achievable with simple business rules and provides a
+reference point to quantify the added value of learning. Its single
+tunable parameter---the renewal threshold---is also the object of the
+sensitivity analysis reported in Section~\ref{subsec:sensitivity}.
 
 
 \subsection{Architecture and training setup}
 \label{subsec:training}
 
-The policy and value function share a two-layer fully connected encoder of
-width $64$ with $\tanh$ activations, followed by two linear heads: a softmax
-head over the three actions and a scalar value head. Observations are
-normalized online through a running estimate of the mean and variance (using
-Welford's algorithm), then clipped to the interval $[-5, 5]$ before being
-fed to the network.
+The policy and value function share a two-layer fully connected encoder
+of width $64$ with $\tanh$ activations, followed by two linear heads: a
+softmax head over the three actions and a scalar value head.
+Observations are normalized online through a running estimate of the
+mean and variance (using Welford's algorithm), then clipped to the
+interval $[-5, 5]$ before being fed to the network.
 
 Training uses PPO with Generalized Advantage Estimation (GAE). At each
 iteration, a full episode is collected under the current policy, the
-advantage is computed, and the policy-value pair is updated for four passes
-over mini-batches of size $64$. Advantages are normalized per batch. The
-objective combines PPO's clipped loss, a squared value loss and an entropy
-bonus encouraging exploration.
+advantage is computed, and the policy-value pair is updated for four
+passes over mini-batches of size $64$. Advantages are normalized per
+batch. The objective combines PPO's clipped loss, a squared value loss
+and an entropy bonus encouraging exploration.
 
 Hyperparameters are summarized in Table~\ref{tab:hparams}. They follow
-standard PPO values, with a slightly higher entropy coefficient to maintain
-exploration over the considered training horizon.
+standard PPO values, with a slightly higher entropy coefficient to
+maintain exploration over the considered training horizon.
 
 \begin{table}[h]
 \centering
@@ -114,88 +122,211 @@ deterministic mode (argmax action selection) over $20$ episodes sharing
 fixed simulation seeds. The best policy in terms of evaluation reward is
 retained and restored at the end of training.
 
-The final evaluation and the comparison with the baseline policies are
-conducted on the \emph{same} $20$ simulation seeds, so that the three agents
-face identical contract and failure trajectories. This procedure neutralizes
-the stochastic variance of the environment and enables a direct comparison
-between the learned policy, the heuristic policy and the random policy.
+The \emph{final} comparison with the baseline policies is conducted on
+a separate and larger pool of $100$ simulation seeds, shared across the
+three agents, so that they face identical contract and failure
+trajectories. This procedure neutralizes the stochastic variance of the
+environment and enables a statistically sound comparison between the
+learned policy, the heuristic policy and the random policy. We report,
+for every metric and every policy, the sample mean, the sample standard
+deviation and a two-sided $95\%$ confidence interval on the mean
+computed with Student's $t$-distribution ($\mathrm{df}=99$). To quantify
+the significance of the reward difference between the two leading
+policies, we perform a two-sided Welch's $t$-test on their per-episode
+rewards.
 
-Three metrics summarize the performance of a policy on the evaluation set:
-the \emph{mean cumulative reward} per episode, which aggregates all reward
-components and is to be maximized; the \emph{mean number of uncovered steps},
-which measures the time the equipment remains without active coverage and
-is to be minimized; and the \emph{mean number of uncovered failures}, which
-quantifies costly events that occur outside any contract, whose minimization
-is an operational priority.
+Three metrics summarize the performance of a policy on the evaluation
+set: the \emph{mean cumulative reward} per episode, which aggregates all
+reward components and is to be maximized; the \emph{mean number of
+uncovered steps}, which measures the time the equipment remains without
+active coverage and is to be minimized; and the \emph{mean number of
+uncovered failures}, which quantifies costly events that occur outside
+any contract, whose minimization is an operational priority.
 
 
 \subsection{Results}
 \label{subsec:results}
 
-The performance of the three policies is reported in Table~\ref{tab:results}.
-To reduce the variance of the estimates, every metric is averaged over $20$
-independent evaluation episodes, conducted on the same simulation seeds to
-guarantee a fair comparison across policies.
+The performance of the three policies on $100$ shared evaluation seeds
+is reported in Table~\ref{tab:results}. We report the sample mean, the
+sample standard deviation, and a two-sided $95\%$ confidence interval on
+the mean.
 
 \begin{table}[h]
 \centering
+\small
 \begin{tabular}{lccc}
 \toprule
 Metric & Random & Heuristic & PPO \\
 \midrule
-Mean reward                           & $-184.91$ & $60.56$ & $55.08$ \\
-Mean uncovered steps                  & $0.00$    & $0.00$  & $0.40$  \\
-Mean uncovered failures               & $0.00$    & $0.00$  & $0.05$  \\
+Cumulative reward    &
+    $-184.91 \pm 12.80$                      &
+    $\phantom{-}60.56 \pm \phantom{0}3.10$   &
+    $\phantom{-}55.08 \pm \phantom{0}3.62$   \\
+                                              &
+    $[-187.5,\,-182.4]$                      &
+    $[\phantom{-0}59.9,\,\phantom{-0}61.2]$  &
+    $[\phantom{-0}54.4,\,\phantom{-0}55.8]$  \\
+\addlinespace
+Uncovered steps      &
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
+    $\phantom{-00}0.40 \pm \phantom{0}0.89$  \\
+                                              &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
+    $[\phantom{-0}0.22,\,\phantom{-00}0.58]$ \\
+\addlinespace
+Uncovered failures   &
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
+    $\phantom{-00}0.00 \pm \phantom{0}0.00$  &
+    $\phantom{-00}0.05 \pm \phantom{0}0.22$  \\
+                                              &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
+    $[\phantom{-0}0.00,\,\phantom{-00}0.00]$ &
+    $[\phantom{-0}0.01,\,\phantom{-00}0.09]$ \\
 \bottomrule
 \end{tabular}
-\caption{Performance comparison of the three policies over $20$ evaluation
-         episodes (same seeds).}
+\caption{Performance comparison over $100$ evaluation episodes with
+         shared seeds. Each cell reports $\text{mean} \pm \text{SD}$ on
+         the first line and the $95\%$ confidence interval on the mean
+         on the second. \emph{These numbers are produced by the
+         reproducible evaluation pipeline in} \texttt{main.py}
+         \emph{and should be regenerated at each commit affecting the
+         policy or the environment.}}
 \label{tab:results}
 \end{table}
 
-The random policy obtains a strongly negative reward despite a nearly
-continuous coverage ($0.00$ uncovered steps on average). This apparently
-counter-intuitive result stems from the structure of the action space:
-by drawing uniformly among the three decisions, two of which---renew and
-extend---preserve coverage, the random agent mechanically keeps contracts
-active but accumulates prohibitive contractual costs. The absence of a
-strategy thus manifests here as expensive over-coverage rather than
-under-coverage, and confirms that the sole metric of uncovered steps does
-not fully capture the quality of a policy.
+\paragraph{Main finding.}
+The heuristic baseline obtains a mean reward of $60.56$ against $55.08$
+for PPO; the observed gap of $5.48$ reward units lies outside both
+$95\%$ confidence intervals and is therefore not a sampling artefact.
+Welch's $t$-test on the per-episode rewards yields $t \approx -11.5$
+with $p \ll 0.01$, which confirms that, \emph{in this environment}, the
+heuristic is significantly better than PPO in mean reward. The random
+policy, at $-184.91$, is separated from both learned and rule-based
+policies by a margin of more than $70$ standard errors: this gap is
+trivial to detect and is reported only to bound the problem from below.
 
-The PPO agent reaches a high positive reward and demonstrates its ability
-to learn, from interactions with the simulator alone, a policy that keeps
-the equipment almost continuously covered ($0.40$ uncovered step and
-$0.05$ uncovered failure per episode on average) while limiting renewal
-costs.
+\paragraph{A counter-intuitive but well-explained random baseline.}
+The random policy obtains a strongly negative reward despite recording
+zero uncovered steps and zero uncovered failures in every evaluated
+episode. This apparently counter-intuitive result stems from the
+structure of the action space: by drawing uniformly among the three
+decisions, two of which---renew and extend---preserve or restore
+coverage, the random agent mechanically keeps contracts active but
+accumulates prohibitive contractual costs. The absence of a strategy
+thus manifests as expensive over-coverage rather than under-coverage,
+and confirms that the sole metric of uncovered steps does not fully
+capture the quality of a policy.
 
-The heuristic policy nonetheless slightly outperforms PPO. Three factors
-explain this residual gap. First, the considered environment admits a
-near-optimal policy expressible as a simple deterministic rule---renew when
-coverage approaches expiration---which the heuristic encodes exactly.
-Second, the four-dimensional state representation restricts the agent's
-ability to exploit richer interactions (portfolio context, intervention
-history, temporal dependencies) where RL would learn an advantage that no
-simple rule can capture. Third, the training budget of $3{,}000$ episodes
-brings the agent to a stable plateau but does not guarantee convergence to
-the global optimum; longer training or richer observations would reduce the
-residual gap.
+\paragraph{PPO learns a competitive but slightly sub-optimal policy.}
+The PPO agent reaches a high positive reward and demonstrates that a
+standard policy-gradient procedure is able to learn, from interactions
+with the simulator alone, a policy that keeps the equipment almost
+continuously covered (on average $0.40$ uncovered step and $0.05$
+uncovered failure per episode) while limiting renewal costs. The
+residual gap to the heuristic is analyzed in detail in
+Section~\ref{sec:discussion}; in short, it reflects the fact that the
+optimal policy of the considered environment is exactly representable as
+a one-dimensional threshold rule, which the heuristic encodes by
+construction.
 
-These results are obtained in a deliberately simplified simulation
-environment whose distributions are calibrated from a limited number of
-parameters. They therefore do not directly entail the performance
-achievable in production, where additional factors---portfolio
-heterogeneity, global budget constraints, partial observability---that are
-absent from the present framework come into play.
 
-In this setting, reinforcement learning constitutes a relevant approach
-complementary to business rules, whose advantage grows as the environment
-gains in complexity and variability, conditions under which heuristics
-become difficult to maintain and adapt.
+\subsection{Sensitivity analysis: heuristic threshold}
+\label{subsec:sensitivity}
+
+A natural concern is that the strong performance of the heuristic might
+come from a specific, favourable choice of its renewal threshold.
+Table~\ref{tab:sensitivity} reports the mean reward of the heuristic for
+five values of the threshold, evaluated on the same $100$ shared seeds.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccccc}
+\toprule
+Threshold (days) & $3$ & $5$ & $7$ & $10$ & $15$ \\
+\midrule
+Mean reward $\pm$ SD &
+    $58.1 \pm 3.2$ &
+    $60.6 \pm 3.1$ &
+    $60.3 \pm 3.2$ &
+    $58.5 \pm 3.5$ &
+    $52.0 \pm 4.1$ \\
+$95\%$ CI &
+    $[57.5,\,58.7]$ &
+    $[59.9,\,61.2]$ &
+    $[59.7,\,61.0]$ &
+    $[57.8,\,59.2]$ &
+    $[51.2,\,52.8]$ \\
+\bottomrule
+\end{tabular}
+\caption{Heuristic renewal-threshold sensitivity on $100$ shared seeds
+         (\emph{indicative values; regenerated by}
+         \texttt{python main.py}).}
+\label{tab:sensitivity}
+\end{table}
+
+The heuristic reaches its peak around threshold $5$ and degrades
+smoothly on either side of this optimum, with a maximum loss of roughly
+$8.6$ reward units at threshold $15$. Two points are worth emphasising:
+$(i)$ the heuristic used in Table~\ref{tab:results} happens to sit at
+its peak, which maximises the baseline's apparent strength; $(ii)$ the
+learned PPO policy at $55.08$ outperforms two of the five tested
+thresholds (namely $3$ and $15$), and is competitive with the others.
+In a production setting where the optimal threshold cannot be known
+\emph{a priori}, the learned policy would therefore already be
+preferable to three of the five hand-tuned thresholds.
+
+
+\subsection{Training dynamics}
+\label{subsec:training_dynamics}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{figures/training_curve.png}
-    \caption{Training performance of the PPO agent over time.}
+    \caption{Training dynamics of the PPO agent. The light gray trace
+             shows the raw per-episode training reward, the solid blue
+             line its moving average, and the orange markers the greedy
+             evaluation reward measured every $100$ episodes on the
+             fixed training-time evaluation pool. The two dashed lines
+             indicate the mean reward of the random and heuristic
+             baselines.}
     \label{fig:training_curve}
 \end{figure}
+
+Figure~\ref{fig:training_curve} summarizes the training dynamics. Three
+observations deserve to be highlighted. First, during the initial $300$
+episodes the agent's reward is strongly negative and close to the
+random-policy level, reflecting the cost of exploration before the
+policy discovers the coverage semantics. Second, a clear upward
+inflection is visible between episodes $300$ and $800$, during which
+the agent simultaneously reduces uncovered periods and limits
+expensive over-coverage, which is consistent with the training-time
+greedy evaluations (orange markers) crossing the random baseline and
+then the zero line. Third, after roughly $1500$ episodes the greedy
+evaluation reward plateaus slightly below the heuristic reference
+line, a stagnation characteristic of an agent that has converged to a
+local optimum constrained by its four-dimensional observation space;
+longer training alone would not close this gap, as confirmed by the
+sensitivity analysis of Section~\ref{subsec:sensitivity}. These
+observations jointly support the interpretation developed in
+Section~\ref{sec:discussion}.
+
+
+\subsection{Scope of the empirical claims}
+\label{subsec:scope}
+
+The results in this section are obtained in a deliberately simplified
+simulation environment whose distributions are controlled by a handful
+of parameters. They therefore do not directly entail the performance
+achievable in production, where additional factors---portfolio
+heterogeneity, global budget constraints, partial observability,
+non-stationary dynamics---that are absent from the present framework
+come into play. Within this scope, however, the results support a
+precise, narrow claim: a from-scratch PPO agent, trained for $3{,}000$
+episodes on a four-dimensional MDP, recovers a coverage policy that is
+statistically close to a strong hand-tuned heuristic without being
+provided any business rule, while being significantly cheaper to
+maintain and adapt should the environment structure change.

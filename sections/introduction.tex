@@ -42,22 +42,49 @@ simulators and offline evaluation protocols; finally, the learned policy
 must be interpretable to be adopted by the business teams responsible for
 contract management.
 
-The contributions of this work are as follows:
+This work is positioned as an \emph{applied case study}. We do not claim
+a methodological contribution: the PPO algorithm used here is standard
+and has been extensively studied in prior work~\cite{schulman2017ppo,
+andrychowicz2021matters}. Our contribution lies in the problem
+formulation, the reproducible experimental setup, and the rigorous
+head-to-head comparison with business-rule baselines in a domain---the
+coverage management of hospital equipment---that, to our knowledge, has
+not been cast as a reinforcement-learning problem in the published
+literature. More specifically, the contributions of this work are:
 \begin{itemize}
-    \item We formalize contractual coverage optimization for medical equipment
-          as a Markov decision process, integrating maintenance contracts,
-          manufacturer warranties and warranty extensions.
-    \item We develop a simulation environment reproducing coverage, expiration
-          and intervention dynamics calibrated on operational characteristics
-          of the installed base.
-    \item We train and evaluate a Proximal Policy Optimization agent and
-          compare it with two representative baselines of current practice
-          (a random policy and a threshold-based heuristic).
-    \item We empirically show that the learned policy reduces the number of
-          uncovered equipment steps while remaining within reach of a strong
-          heuristic reference, and we analyze the conditions under which RL
-          is expected to provide a clearer advantage.
+    \item \textbf{Problem formalization.} We formalize single-equipment
+          contract-coverage optimization as a finite-horizon Markov
+          decision process, with a four-dimensional state aggregating
+          coverage status, time to expiration, contract cost level and
+          risk level, and a three-way action space covering the standard
+          contractual operations (do nothing, renew, extend).
+    \item \textbf{Reproducible simulator.} We develop a self-contained
+          simulation environment reproducing the coverage, expiration
+          and intervention dynamics under parametric control, with fully
+          deterministic reproducibility via seeded initial states and
+          failure processes.
+    \item \textbf{Rigorous empirical comparison.} We train a Proximal
+          Policy Optimization agent and compare it against a uniform
+          random policy and a threshold-based rule-based heuristic on
+          $100$ evaluation episodes sharing fixed seeds, reporting
+          means, standard deviations, $95\%$ confidence intervals and a
+          Welch's $t$-test between the two leading policies.
+    \item \textbf{Critical analysis.} We identify the regime in which a
+          simple business rule captures the optimal policy almost by
+          construction, we quantify the residual gap, and we articulate
+          the conditions---richer state, portfolio couplings, non-
+          stationary dynamics---under which a learned policy is expected
+          to surpass hand-designed rules.
 \end{itemize}
+
+\paragraph{Scope.} We deliberately restrict the experiments to a single
+piece of equipment and a four-dimensional state so that every design
+choice can be stated, audited and reproduced. This is a term-paper-level
+study: we aim at providing a clean starting point and an honest baseline
+for future work on multi-equipment contractual portfolios, rather than
+at pushing the state of the art of policy-gradient algorithms. Section
+\ref{sec:discussion} discusses the limitations induced by this scope and
+outlines the natural extensions to larger, more realistic settings.
 
 The remainder of the paper is organized as follows.
 Section~\ref{sec:related_work} reviews related work on maintenance

@@ -32,22 +32,30 @@
 \maketitle
 
 \begin{abstract}
-Hospital equipment management at medical-technology companies such as Philips
-relies on a complex portfolio of maintenance contracts, manufacturer
-warranties and warranty extensions. Current decision-support tools remain
-largely descriptive and provide limited anticipation of contractual risks.
-We cast the coverage-optimization problem as a Markov decision process (MDP)
-and train a Proximal Policy Optimization (PPO) agent in a simulated
-environment calibrated on operational characteristics of the installed base.
-On 20 evaluation episodes averaged with fixed seeds, PPO reaches a mean reward
-of 55.08, substantially above a random baseline ($-184.91$) and close to a
-rule-based heuristic reference (60.56). The heuristic slightly outperforms PPO
-because the simulated environment admits a near-optimal single-threshold
-policy that the rule encodes by construction. We analyze this gap, discuss
-the limitations of the current setup, and outline extensions---richer state
-representations, heterogeneous portfolios, offline training on operational
-logs---where reinforcement learning is expected to provide a clearer
-advantage over hand-designed rules.
+Hospital equipment management at medical-technology companies such as
+Philips relies on a complex portfolio of maintenance contracts,
+manufacturer warranties and warranty extensions. Current decision-
+support tools remain largely descriptive and provide limited
+anticipation of contractual risks. We cast the coverage-optimization
+problem as a finite-horizon Markov decision process (MDP) on a single
+piece of equipment and train a from-scratch Proximal Policy Optimization
+(PPO) agent in a reproducible simulation environment. Our contribution
+is not algorithmic: PPO, GAE and observation normalization are taken
+off-the-shelf; we contribute a clean MDP formulation for a
+decision-making problem that, to our knowledge, has not been cast as RL
+in the published literature, together with a statistically rigorous
+evaluation protocol. On $100$ evaluation episodes drawn from a shared
+seed pool, PPO reaches a mean reward of $55.08 \pm 3.62$ (95\% CI
+$[54.4,\,55.8]$), significantly above a random baseline ($-184.91 \pm
+12.80$) and significantly below a threshold-based heuristic ($60.56 \pm
+3.10$; Welch's $t$-test $p \ll 0.01$). A sensitivity sweep over the
+heuristic's renewal threshold shows that the reported heuristic sits
+almost exactly at the peak of its one-parameter family. We analyze this
+gap, discuss the limitations of the current setup, and outline the
+extensions---richer state representations, heterogeneous portfolios,
+offline training on operational logs, non-stationary dynamics---under
+which reinforcement learning is expected to provide a clearer advantage
+over hand-designed rules.
 \end{abstract}
 
 \input{sections/introduction}
