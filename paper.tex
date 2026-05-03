@@ -46,14 +46,14 @@ decision-making problem that, to our knowledge, has not been cast as RL
 in the published literature, together with a statistically rigorous evaluation
 protocol that now includes synchronous value iteration (\texttt{dp\_solver.py})
 as a tabular Bellman reference on an augmented finite MDP. On $100$ shared seeds,
-PPO attains $44.83 \pm 20.05$ ($95\%$ CI $[40.90,\,48.76]$), far above random
-($-241.44 \pm 92.66$), far below a threshold heuristic ($58.06 \pm 3.93$; Welch
-$t = {-}6.48$, $p < 10^{-4}$), and materially below synchronous VI rollout
+PPO attains $53.14 \pm 4.68$ ($95\%$ CI $[52.22,\,54.06]$), far above random
+($-241.44 \pm 92.66$), below a threshold heuristic ($58.06 \pm 3.93$; Welch
+$t \approx{-}8.06$, $p < 10^{-4}$), and below synchronous VI rollout
 statistics (${\approx}58.08 \pm 4.0$, mean nearly identical because VI and heuristic
 Welch-tests $p \approx 0.97$). Interpretationally, RL competes against co-optimal
 planning benchmarks, not an underspecified folklore rule.
 
-The heuristic remains robust across its threshold sweep ($49.14$--$58.06$), while PPO variance is five-times higher. Extensions span richer states, heterogeneous portfolios,
+The heuristic remains robust across its threshold sweep ($49.14$--$58.06$); PPO dispersion on pooled seeds matches the heuristic order of magnitude while the mean shortfall persists. Extensions span richer states, heterogeneous portfolios,
 offline histories, tighter PPO hyper-parameter ablations---avenues where greedy tabulation loses tractability faster than amortized RL.
 \end{abstract}
 

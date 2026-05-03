@@ -66,12 +66,14 @@ of \emph{co-optimal planning}. Value iteration on the augmented tabular MDP
 cannot distinguish from the heuristic (Section~\ref{subsec:baselines}), so the
 ``business rule'' is not an arbitrary straw man: it tracks the Bellman reference
 up to Monte Carlo noise. Neural PPO therefore trails an analytical certificate,
-not merely tribal knowledge, and its higher reward variance highlights function
-approximation pathologies rather than ambiguity about the optimum.
+not merely tribal knowledge, while its cross-seed dispersion on the frozen
+best checkpoint is modest: the headline issue is a \emph{mean} shortfall versus
+co-optimal certificates, not unreliable point estimates on this seed pool.
 
 The sensitivity analysis in Section~\ref{subsec:sensitivity} adds engineering colour:
-the heuristic sits on a flat optimum for low thresholds, stays robust at looser
-thresholds, and still dominates PPO. Production teams may value that robustness,
+the heuristic sits on a flat optimum for low thresholds, stays robust until the
+chosen deadline drifts excessively late, and attains peaks that PPO has not
+matched despite outperforming its loosest instantiations. Production teams may value that robustness,
 while researchers should treat it as evidence that parsimonious policies exhaust
 the toy model's headroom until couplings and partial observability enter the story
 (Section~\ref{subsec:improvements}).

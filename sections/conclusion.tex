@@ -14,22 +14,24 @@ grounded comparison with three baselines: uniform random actions, a
 threshold heuristic whose parameter is swept, and a greedy policy from
 discounted value iteration on the tabulated expected MDP.
 On $100$ evaluation episodes drawn from a shared seed pool, the PPO
-agent reaches a mean reward of $44.83 \pm 20.05$ ($95\%$ confidence
-interval $[40.90, 48.76]$), far above the random policy
-($-241.44 \pm 92.66$) and far below both the heuristic
+agent reaches a mean reward of $53.14 \pm 4.68$ ($95\%$ confidence
+interval $[52.22, 54.06]$), far above the random policy
+($-241.44 \pm 92.66$) yet still below both the heuristic
 ($58.06 \pm 3.93$) and VI ($58.08 \pm 3.96$), with Welch tests against PPO at
 $p < 10^{-4}$ for either co-optimal reference while heuristic and VI means are
-statistically indistinguishable ($p \approx 0.97$). The heuristic remains
-robust across its threshold sweep ($49.14$ to $58.06$), yet even its weakest
-instantiation exceeds PPO. PPO's reward standard deviation is roughly five
-times larger, underscoring reliability concerns on identical seeds.
+statistically indistinguishable ($p \approx 0.97$). Threshold sweeps trace a
+flat peak at $58.06$ before decaying to $49.14$ at threshold $15$: PPO therefore
+sits \emph{between} the loosest heuristic and the Bellman-aligned plateau.
+Across identical seeds PPO dispersion tracks the baselines' order of magnitude
+($4.68$ versus $\approx 3.9$); the operative issue is thus the downward shift
+of the mean, not exploding cross-seed variance on the pooled evaluation grid.
 Taken together, these observations show that PPO recovers non-trivial behaviour
 from reward alone but does not match \emph{any} certificate of Bellman optimality
 available in this toy model. Reinforcement learning's comparative advantage is
 expected only once portfolios, partial observability and budget couplings break
 the parsimony that tabulation already exhausts here.
 These results rely on a deliberately simplified simulator, a
-four-dimensional state representation and a training budget of $3{,}000$
+four-dimensional state representation and a training budget of $5{,}000$
 episodes, all of which bound the scope of the conclusions.
 Natural extensions include the exploitation of real operational data to
 enrich the state representation, the extension of the framework to
