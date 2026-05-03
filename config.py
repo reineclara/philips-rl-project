@@ -20,6 +20,11 @@ RENEWAL_BASE_COST = 1.5         # base renewal cost (scaled by cost_level)
 EXTENSION_COST_FACTOR = 0.8     # extension is cheaper than full renewal
 FAILURE_PENALTY = 5.0           # per uncovered failure
 BASE_FAILURE_PROB = 0.02        # scaled by (1 + risk_level)
+FAILURE_SCALE_OOD = 1.45        # distribution-shift stress for Section OOD experiments
+
+# Two-equipment portfolio toy (daily shared budget renewed every step)
+TWO_DAILY_MAX_SPEND = 2.15      # cash < 2 × min(renew heavy) ⇒ portfolio friction
+BUDGET_VIOLATION_PENALTY = 1.35 # when a costly action cannot be funded today
 
 # === PPO ===
 LEARNING_RATE = 3e-4
@@ -34,7 +39,8 @@ VALUE_COEF = 0.5
 OBS_CLIP = 5.0                  # clip normalized obs to [-OBS_CLIP, +OBS_CLIP]
 
 # === Training ===
-NUM_EPISODES = 3000
+NUM_EPISODES = 5000             # longer budget (reviewer suggestion: extend beyond 3k)
+TWO_AGENT_TRAIN_EPISODES = 1800 # portfolio PPO budget in benchmarks_extended.py
 LOG_EVERY = 100
 EVAL_INTERVAL = 100             # evaluate every N episodes
 EVAL_EPISODES = 20              # used during training (cheap periodic check)
@@ -50,5 +56,15 @@ HEURISTIC_THRESHOLDS = [3, 5, 7, 10, 15]
 # === I/O ===
 BEST_MODEL_PATH = "best_model.pt"
 TRAINING_CURVE_PATH = "training_curve.png"
-RESULTS_MD_PATH = "results.md"
 RESULTS_JSON_PATH = "results.json"
+RESULTS_MD_PATH = "results.md"
+
+# Tabular SARSA (extended benchmark)
+TABULAR_SARSA_EPISODES = 3500
+
+# Ablation quick runs (entropy grid); see ablation_worker.py
+ABLATION_TRAIN_EPISODES = 900
+
+# Extended benchmark bundle I/O
+EXTENDED_BENCHMARK_JSON = "extended_benchmarks.json"
+EXTENDED_BENCHMARK_MD = "extended_benchmarks.md"

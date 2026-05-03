@@ -31,12 +31,16 @@ Coefficients live in `config.py` and keep per-step rewards roughly in `[-5, +3]`
 ## Project structure
 
 ```
-config.py          # hyperparameters (env + PPO + training + I/O)
-environment.py     # ContractEnv (+ internal_tuple for VI alignment)
-agent.py           # RunningMeanStd, RandomAgent, HeuristicAgent, PPOAgent
-dp_solver.py       # discounted value iteration for the expected MDP (exact tabular greedy policy)
-main.py            # train PPO + rigorous eval vs random/heuristic/VI + export results.md/json
-requirements.txt  # numpy, torch, matplotlib
+config.py                  # hyperparameters (env + PPO + training + I/O)
+environment.py             # ContractEnv (+ internal_tuple for VI alignment)
+environment_two_budget.py  # optional two-equipment MDP with shared daily budget
+tabular_sarsa.py           # bucketed SARSA baseline on ContractEnv
+agent.py                   # RunningMeanStd, RandomAgent, HeuristicAgent, PPOAgent
+dp_solver.py               # discounted value iteration for the expected MDP (exact tabular greedy policy)
+main.py                    # train PPO + rigorous eval vs random/heuristic/VI + export results.md/json
+benchmarks_extended.py     # OOD, SARSA summary, two-equip PPO, reward probe, entropy ablations
+ablation_worker.py         # subprocess helper for entropy sweeps (used by benchmarks_extended.py)
+requirements.txt           # numpy, torch, matplotlib
 ```
 
 ## Install
@@ -53,7 +57,7 @@ python main.py
 
 ## What the script does
 
-1. **Trains PPO** for `NUM_EPISODES = 3000` episodes with:
+1. **Trains PPO** for `NUM_EPISODES = 5000` episodes with:
    - observation normalization (`RunningMeanStd`, clipped to `±5`)
    - advantage normalization
    - entropy bonus (`ENTROPY_COEF = 0.02`)
@@ -72,6 +76,20 @@ python main.py
 
 All stochastic policies confront the **same simulator seeds**, so aggregates are directly comparable (`config.EVAL_EPISODES_FINAL = 100` during the exported run).
 
+### Optional extended benchmarks
+
+After `main.py` has produced `best_model.pt`, run:
+
+```bash
+python benchmarks_extended.py
+```
+
+This bundles tabular SARSA training, an out-of-distribution failure-rate stress
+test on the saved PPO policy, a short PPO run on the two-equipment budget
+environment, a heuristic-only sweep over the non-coverage penalty multiplier,
+and a few subprocessed entropy ablations (`ablation_worker.py`). Outputs land in
+`extended_benchmarks.md` and `extended_benchmarks.json` (paths in `config.py`).
+
 
 ## Configuration
 
@@ -83,7 +101,10 @@ All hyperparameters are centralized in `config.py`:
   `BATCH_SIZE`, `HIDDEN_DIM`, `ENTROPY_COEF`, `VALUE_COEF`, `OBS_CLIP`.
 - **Training** — `NUM_EPISODES`, `LOG_EVERY`, `EVAL_INTERVAL`, `EVAL_EPISODES`,
   `SEED`.
-- **I/O** — `BEST_MODEL_PATH`, `TRAINING_CURVE_PATH`.
+- **I/O** — `BEST_MODEL_PATH`, `TRAINING_CURVE_PATH`, `EXTENDED_BENCHMARK_*`.
+- **Extended suite** — `FAILURE_SCALE_OOD`, `TWO_DAILY_MAX_SPEND`,
+  `BUDGET_VIOLATION_PENALTY`, `TABULAR_SARSA_EPISODES`, `TWO_AGENT_TRAIN_EPISODES`,
+  `ABLATION_TRAIN_EPISODES`.
 
 ## Notes
 

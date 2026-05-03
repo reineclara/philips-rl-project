@@ -32,9 +32,11 @@ class ContractEnv:
         self.action_dim = 3
         self.rng = np.random.default_rng(config.SEED)
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, failure_scale_mult=1.0):
+        """failure_scale_mult>1 stresses higher failure prevalence (distribution shift)."""
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+        self.failure_scale_mult = float(failure_scale_mult)
         self.covered = 1
         self.days_to_expiration = int(
             self.rng.integers(config.MIN_INITIAL_DAYS, config.MAX_INITIAL_DAYS + 1)
@@ -113,7 +115,11 @@ class ContractEnv:
         r_coverage = config.COVERAGE_BONUS if self.covered else -config.UNCOVERED_PENALTY
         r_expiry = -config.EXPIRATION_PENALTY if just_expired else 0.0
 
-        fail_prob = config.BASE_FAILURE_PROB * (1 + self.risk_level)
+        fail_prob = (
+            config.BASE_FAILURE_PROB
+            * self.failure_scale_mult
+            * (1 + self.risk_level)
+        )
         failed = self.rng.random() < fail_prob
         uncovered_failure = failed and not self.covered
         r_failure = -config.FAILURE_PENALTY if uncovered_failure else 0.0

@@ -97,7 +97,7 @@ maintain exploration over the considered training horizon.
 \toprule
 Hyperparameter & Value \\
 \midrule
-Number of episodes            & $3{,}000$ \\
+Number of episodes            & $5{,}000$ \\
 Episode horizon               & $120$ days \\
 Learning rate                 & $3 \times 10^{-4}$ \\
 Discount factor               & $0.99$ \\
@@ -247,7 +247,7 @@ during the overwhelming majority of each episode ($1.12$ uncovered step
 and $0.11$ uncovered failure per episode on average) while limiting
 renewal costs. The policy is not competitive with the heuristic in mean
 reward, however, and its high variance indicates that convergence is
-not fully stable within the $3{,}000$-episode training budget: a small
+not fully stable within the $5{,}000$-episode training budget: a small
 fraction of evaluation episodes yields rewards well below the bulk of
 the distribution, dragging the mean down. The residual gap to the
 heuristic is analyzed in detail in Section~\ref{sec:discussion}; in
@@ -315,29 +315,43 @@ optimality in expectation and shows that ambiguity is negligible between
 those two viewpoints here.
 
 
-\subsection{Ablations, longer training and alternative RL methods}
+\subsection{Extended robustness suite (\texttt{benchmarks\_extended.py})}
 \label{subsec:further-exp}
 
-\textbf{Ablations.} Systematic grids over PPO internals (entropy
-coefficients, clipping range, optimisation epochs, learning-rate
-schedules) and reward-shape coefficients tighten confidence that an
-implementation is faithful rather than brittle. Recording learning
-curves for each configuration would quantify stability of the plateau
-highlighted in Section~\ref{subsec:training_dynamics}.
+The main narrative and Table~\ref{tab:results} focus on the single-equipment
+MDP trained for $5{,}000$ PPO episodes. To address common checklist items from
+informal reviews (alternative RL flavours, mild distribution shift, richer
+coupling, light ablations), the repository ships
+\texttt{benchmarks\_extended.py}, invoked \emph{after} \texttt{main.py} so that
+the saved PPO checkpoint is available for stress tests:
 
-\textbf{Longer horizons.} Extending optimisation to $10^4$--$10^5$
-episodes is a pragmatic stress test for diminishing returns on this
-architecture: value iteration delineates attainable performance exactly,
-so divergence from VI after arbitrarily long optimisation would quantify
-persisting approximation error beyond finite budgets.
+\begin{itemize}
+  \item \textbf{OOD evaluation.} The simulator accepts a multiplicative scaling
+        of failure probabilities at reset; we reuse the trained PPO policy and
+        report mean rewards under inflated hazard rates alongside the nominal
+        in-distribution curve (configuration field \texttt{FAILURE\_SCALE\_OOD}
+        in \texttt{config.py}).
+  \item \textbf{Tabular SARSA.} A bucketed-state SARSA learner
+        (\texttt{tabular\_sarsa.py}) interacts with the same single-equipment
+        stochastic simulator and is evaluated greedily on the shared evaluation
+        seeds.
+  \item \textbf{Two equipments + shared daily budget.}
+        \texttt{environment\_two\_budget.py} couples two parallel assets with a
+        daily spending cap that may forbid simultaneous costly renewals; PPO,
+        independent per-device heuristics over the nine-dimensional joint action,
+        and a random joint policy are compared with Welch tests on identical seeds.
+  \item \textbf{Reward-shape probe.} The heuristic baseline alone is swept over
+        multipliers of the non-coverage penalty to document sensitivity without
+        retraining PPO for each coefficient.
+  \item \textbf{Entropy ablations.} Short PPO runs with varied entropy bonuses
+        are spawned via \texttt{ablation\_worker.py} so that configuration edits
+        do not contend with the primary training script's imports.
+\end{itemize}
 
-\textbf{Alternative algorithms.} Off-policy methods (soft actor--critic,
-quantile-based critics) or replay-based value learners (DQN variants) may
-lower variance in principle, yet they do not remove the fundamental
-issue that the tabular Bellman solution is already near-trivially
-encoded by co-optimal threshold rules in the present toy MDP. We defer
-comprehensive head-to-head comparisons to future work on enriched state
-spaces where such rules lose their near-optimality.
+Human-readable summaries are written to \texttt{extended\_benchmarks.md}; the raw
+nested dictionary is mirrored in \texttt{extended\_benchmarks.json}. Numbers are
+environment-dependent and intentionally omitted here so that the manuscript stays
+consistent with whichever seeds and budgets a reader regenerates locally.
 
 
 \subsection{Training dynamics}
